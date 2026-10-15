@@ -8,7 +8,6 @@
 
 #import "MPMainController.h"
 #import <MASPreferences/MASPreferencesWindowController.h>
-#import <Sparkle/Sparkle.h>
 #import "MPGlobals.h"
 #import "MPUtilities.h"
 #import "NSDocumentController+Document.h"
@@ -20,25 +19,10 @@
 #import "MPHtmlPreferencesViewController.h"
 #import "MPTerminalPreferencesViewController.h"
 #import "MPDocument.h"
+#import "MPURLSecurityPolicy.h"
 
 
 static NSString * const kMPTreatLastSeenStampKey = @"treatLastSeenStamp";
-
-
-NS_INLINE BOOL MPUpdaterDisabled(void)
-{
-    // Unit tests run hosted inside this app, so XCTest is loaded into our
-    // process. Class lookup is robust across Xcode versions, unlike the
-    // XCTestConfigurationFilePath environment variable.
-    if (NSClassFromString(@"XCTestCase") != Nil)
-        return YES;
-    // UI tests can't be detected that way (XCTest lives in the XCUITest
-    // runner process, not in the app under test), so MacDownUITests passes
-    // "-MPDisableUpdater YES" as a launch argument, which NSUserDefaults'
-    // argument domain surfaces here. Doubles as a persistent power-user
-    // kill switch (defaults write ... MPDisableUpdater -bool YES).
-    return [[NSUserDefaults standardUserDefaults] boolForKey:@"MPDisableUpdater"];
-}
 
 
 NS_INLINE void MPOpenBundledFile(NSString *resource, NSString *extension)
@@ -112,7 +96,7 @@ NS_INLINE void treat()
 }
 
 
-@interface MPMainController () <SPUUpdaterDelegate>
+@interface MPMainController ()
 @property (readonly) NSWindowController *preferencesWindowController;
 @property (nonatomic, strong, readwrite) SPUStandardUpdaterController *updaterController;
 @end
@@ -129,15 +113,12 @@ NS_INLINE void treat()
             andSelector:@selector(openUrlSchemeAppleEvent:withReplyEvent:)
           forEventClass:kInternetEventClass andEventID:kAEGetURL];
 
-    // Deferred start (D2/D5): never start the updater in a test process --
-    // startUpdater schedules timers, may show the update-permission consent
-    // prompt, and on misconfiguration surfaces a modal error alert.
-    if (!MPUpdaterDisabled())
-        [self.updaterController startUpdater];
+    // This fork is updated only through reviewed manual builds.
+
 }
 
 // Open a file from a browser with url of the form :
-// "x-macdown://open?url=file:///path/to/a/file&line=123&column=45"
+// "x-macdown-local://open?url=file:///path/to/a/file&line=123&column=45"
 - (void)openUrlSchemeAppleEvent:(NSAppleEventDescriptor *)event
                  withReplyEvent:(NSAppleEventDescriptor *)reply
 {
@@ -175,7 +156,8 @@ NS_INLINE void treat()
     NSLog(@"%@:%@:%@", fileParam, lineParam, columnParam);
 
     NSURL *target = [NSURL URLWithString:fileParam];
-    if (!target) {
+    if (!target.isFileURL
+        || ![MPURLSecurityPolicy isAllowedPreviewResourceURL:target]) {
         return;
     }
     NSDocumentController *c = [NSDocumentController sharedDocumentController];
@@ -240,13 +222,13 @@ NS_INLINE void treat()
 
 - (IBAction)checkForUpdates:(id)sender
 {
-    [self.updaterController checkForUpdates:sender];
+    // Deliberately inactive: this fork has no updater or update feed.
 }
 
 - (BOOL)validateMenuItem:(NSMenuItem *)menuItem
 {
     if (menuItem.action == @selector(checkForUpdates:))
-        return self.updaterController.updater.canCheckForUpdates;
+        return NO;
     // Intentional blanket YES: preserves the always-enabled behavior of this
     // delegate's other menu actions (and of any added in the future).
     return YES;
@@ -265,8 +247,6 @@ NS_INLINE void treat()
     [center addObserver:self selector:@selector(showFirstLaunchTips)
                    name:MPDidDetectFreshInstallationNotification
                  object:self.preferences];
-    _updaterController = [[SPUStandardUpdaterController alloc]
-        initWithStartingUpdater:NO updaterDelegate:self userDriverDelegate:nil];
     [self copyFiles];
     return self;
 }
@@ -294,18 +274,6 @@ NS_INLINE void treat()
     [self openPendingFiles];
     [self openPendingFolders];
     treat();
-}
-
-
-#pragma mark - SPUUpdaterDelegate
-
-- (NSSet<NSString *> *)allowedChannelsForUpdater:(SPUUpdater *)updater
-{
-    // Pre-release builds are published on the "beta" channel of the single
-    // appcast at SUFeedURL. Items with no channel (stable) are always allowed.
-    if (self.preferences.updateIncludesPreReleases)
-        return [NSSet setWithObject:@"beta"];
-    return [NSSet set];
 }
 
 

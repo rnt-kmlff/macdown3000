@@ -81,4 +81,15 @@
     return [targetPath hasPrefix:baseDir];
 }
 
++ (BOOL)isAllowedPreviewResourceURL:(NSURL *)url
+{
+    NSString *scheme = url.scheme.lowercaseString;
+    if ([scheme isEqualToString:@"file"])
+        return !url.host.length
+            || [url.host.lowercaseString isEqualToString:@"localhost"];
+    return [scheme isEqualToString:@"data"]
+        || [url.absoluteString isEqualToString:@"about:blank"];
+}
+
+
 @end

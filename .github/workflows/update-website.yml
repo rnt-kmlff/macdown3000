@@ -14,7 +14,7 @@ jobs:
   update-website:
     name: Update Website Download Links
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.repository == 'schuyler/macdown3000' && (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success') }}
 
     steps:
       - name: Checkout repository

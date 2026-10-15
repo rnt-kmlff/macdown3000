@@ -10,7 +10,7 @@
 #import <hoedown/document.h>
 
 // MacDown's preference suite name
-static NSString * const kMPPreferenceSuiteName = @"app.macdown.macdown3000";
+static NSString * const kMPPreferenceSuiteName = @"io.github.rnt-kmlff.macdownlocal";
 
 // Preference keys (matching MPPreferences.h)
 static NSString * const kMPHtmlStyleNameKey = @"htmlStyleName";

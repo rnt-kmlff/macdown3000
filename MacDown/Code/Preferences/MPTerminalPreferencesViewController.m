@@ -123,6 +123,11 @@ NS_INLINE NSColor *MPGetInstallationIndicatorColor(BOOL installed)
 /**
  * Returns the user-local bin directory path (~/.local/bin)
  */
+- (NSString *)userCommandPath
+{
+    return [[self userBinPath] stringByAppendingPathComponent:kMPCommandName];
+}
+
 - (NSString *)userBinPath
 {
     return [NSHomeDirectory() stringByAppendingPathComponent:@".local/bin"];
@@ -277,7 +282,8 @@ NS_INLINE NSColor *MPGetInstallationIndicatorColor(BOOL installed)
                 [NSCharacterSet whitespaceAndNewlineCharacterSet];
             NSString *prefix = [output stringByTrimmingCharactersInSet:padding];
             macdownPath =
-                [prefix stringByAppendingPathComponent:@"bin/macdown"];
+                [prefix stringByAppendingPathComponent:
+                    [@"bin" stringByAppendingPathComponent:kMPCommandName]];
         }
 
         if ([[NSFileManager defaultManager] fileExistsAtPath:macdownPath])
@@ -285,7 +291,7 @@ NS_INLINE NSColor *MPGetInstallationIndicatorColor(BOOL installed)
         else
         {
             // Also check user-local installation
-            NSString *userLocalPath = [[weakSelf userBinPath] stringByAppendingPathComponent:@"macdown"];
+            NSString *userLocalPath = [weakSelf userCommandPath];
             if ([[NSFileManager defaultManager] fileExistsAtPath:userLocalPath])
                 weakSelf.shellUtilityURL = [NSURL fileURLWithPath:userLocalPath];
             else
@@ -317,7 +323,7 @@ NS_INLINE NSColor *MPGetInstallationIndicatorColor(BOOL installed)
 
     // Install to user-local directory (~/.local/bin)
     NSString *userBin = [self userBinPath];
-    NSString *installPath = [userBin stringByAppendingPathComponent:@"macdown"];
+    NSString *installPath = [self userCommandPath];
 
     // Ensure directory exists
     NSError *error = nil;
@@ -352,7 +358,7 @@ NS_INLINE NSColor *MPGetInstallationIndicatorColor(BOOL installed)
                 @"Installation Successful",
                 @"Shell utility installation success title");
             details = NSLocalizedString(
-                @"The macdown shell utility has been installed successfully.",
+                @"The macdown-local shell utility has been installed successfully.",
                 @"Shell utility installation success message");
         }
         else
@@ -362,7 +368,7 @@ NS_INLINE NSColor *MPGetInstallationIndicatorColor(BOOL installed)
                 @"Shell utility installation success with PATH setup needed");
             details = [NSString stringWithFormat:
                 NSLocalizedString(
-                    @"The macdown shell utility has been installed to %@.\n\n"
+                    @"The macdown-local shell utility has been installed to %@.\n\n"
                     @"To use it from Terminal, add this line to your shell configuration file "
                     @"(~/.zshrc or ~/.bash_profile):\n\n"
                     @"    export PATH=\"$HOME/.local/bin:$PATH\"",
@@ -408,7 +414,7 @@ NS_INLINE NSColor *MPGetInstallationIndicatorColor(BOOL installed)
             @"Uninstallation Successful",
             @"Shell utility uninstallation success title");
         alert.informativeText = NSLocalizedString(
-            @"The macdown shell utility has been removed successfully.",
+            @"The macdown-local shell utility has been removed successfully.",
             @"Shell utility uninstallation success message");
         [alert runModal];
     }

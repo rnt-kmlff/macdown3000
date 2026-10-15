@@ -19,13 +19,6 @@
 #import "MPPreferences.h"
 #import "MPHTMLResourceURLs.h"
 
-// Warning: If the version of MathJax is ever updated, please check the status
-// of https://github.com/mathjax/MathJax/issues/548. If the fix has been merged
-// in to MathJax, then the WebResourceLoadDelegate can be removed from MPDocument
-// and MathJax.js can be removed from this project.
-static NSString * const kMPMathJaxCDN =
-    @"https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.3/MathJax.js"
-    @"?config=TeX-AMS-MML_HTMLorMML";
 static NSString * const kMPPrismScriptDirectory = @"Prism/components";
 static NSString * const kMPPrismThemeDirectory = @"Prism/themes";
 static NSString * const kMPPrismPluginDirectory = @"Prism/plugins";
@@ -488,25 +481,19 @@ NS_INLINE NSString *MPEscapeHTMLText(NSString *value)
 
 NS_INLINE NSString *MPPreviewContentSecurityPolicy(void)
 {
-    // MathJax 2.x relies on eval/new Function during startup, and bundled
-    // preview libraries inject inline styles while rendering annotated output.
-    //
-    // Issue #341: img-src and media-src must keep data:, file:, http: and
-    // https: allowed. Dropping any scheme silently breaks image rendering for
-    // that source — the <img> container still lays out, but the bits never
-    // load. MPImageRenderingTests pins this contract; update it deliberately
-    // if you tighten the policy.
+    // All preview assets are local. The resource delegate separately rejects
+    // network requests and redirects, even if a document supplies raw HTML.
     return @"default-src 'none'; "
            @"base-uri 'none'; "
            @"form-action 'none'; "
            @"object-src 'none'; "
            @"frame-src 'none'; "
-           @"img-src data: file: http: https:; "
-           @"media-src data: file: http: https:; "
+           @"img-src data: file:; "
+           @"media-src data: file:; "
            @"style-src 'self' 'unsafe-inline' file:; "
            @"font-src data: file:; "
-           @"connect-src http: https:; "
-           @"script-src 'self' file: https://cdnjs.cloudflare.com 'unsafe-eval'";
+           @"connect-src 'none'; "
+           @"script-src 'self' file: 'unsafe-eval'";
 }
 
 NS_INLINE NSString *MPPreviewHeadTags(NSString *checkboxBridgeToken)
@@ -604,8 +591,14 @@ NS_INLINE NSString *MPPreviewHeadTags(NSString *checkboxBridgeToken)
 - (NSArray *)mathjaxScripts
 {
     NSMutableArray *scripts = [NSMutableArray array];
-    NSURL *url = [NSURL URLWithString:kMPMathJaxCDN];
     NSBundle *bundle = [NSBundle mainBundle];
+    NSURL *loader = [bundle URLForResource:@"MathJax" withExtension:@"js"
+                             subdirectory:@"MathJax/Offline"];
+    NSCAssert(loader, @"Verified offline MathJax assets are missing");
+    NSURLComponents *components = [NSURLComponents componentsWithURL:loader
+                                           resolvingAgainstBaseURL:NO];
+    components.query = @"config=TeX-AMS-MML_HTMLorMML";
+    NSURL *url = components.URL;
     MPEmbeddedScript *script =
         [MPEmbeddedScript assetWithURL:[bundle URLForResource:@"init"
                                                 withExtension:@"js"

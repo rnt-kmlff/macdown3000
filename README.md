@@ -1,4 +1,16 @@
-# MacDown 3000
+# MacDown Local
+
+Personal security-hardening fork of MacDown 3000. Candidate builds are under
+review and are not approved releases. See [security boundaries](SECURITY.md)
+and the [hardening design](plans/offline-hardening.md).
+
+The fork replaces the old metadata parser, bounds hostile metadata, blocks
+automatic preview network requests, bundles math assets, and isolates its
+identity/settings from upstream. Updates are manual reviewed builds.
+
+---
+
+## Upstream MacDown 3000
 
 [![Tests](https://github.com/schuyler/macdown3000/workflows/Tests/badge.svg)](https://github.com/schuyler/macdown3000/actions)
 [![Downloads](https://img.shields.io/github/downloads/schuyler/macdown3000/total)](https://github.com/schuyler/macdown3000/releases)

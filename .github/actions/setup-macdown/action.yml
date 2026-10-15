@@ -16,3 +16,7 @@ runs:
     - name: Build peg-markdown-highlight
       run: make -C Dependency/peg-markdown-highlight
       shell: bash
+
+    - name: Prepare verified offline math assets
+      run: python3 Tools/prepare_offline_mathjax.py
+      shell: bash

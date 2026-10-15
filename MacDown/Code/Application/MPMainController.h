@@ -14,9 +14,7 @@
 
 @property (nonatomic, readonly) MPPreferences *preferences;
 
-/** The Sparkle updater controller. Created at init (not started); started in
-    applicationDidFinishLaunching: unless the updater is disabled for this
-    process (XCTest loaded, or -MPDisableUpdater YES launch argument). */
+/** Always nil in this offline fork; retained for menu/test compatibility. */
 @property (nonatomic, readonly, strong) SPUStandardUpdaterController *updaterController;
 
 /** Forwards to the updater controller; target of the

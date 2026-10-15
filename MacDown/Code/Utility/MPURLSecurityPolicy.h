@@ -18,4 +18,8 @@
 /// parent directory. Both URLs are resolved (symlinks, ..) before comparison.
 + (BOOL)url:(NSURL *)targetURL isWithinScopeOfBaseURL:(NSURL *)baseURL;
 
+/// Automatic preview requests never access a network URL.
++ (BOOL)isAllowedPreviewResourceURL:(NSURL *)url;
+
+
 @end

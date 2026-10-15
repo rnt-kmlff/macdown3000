@@ -14,6 +14,7 @@ permissions:
 jobs:
   staple:
     name: Staple Notarization and Update Release
+    if: github.repository == 'schuyler/macdown3000'
     runs-on: macos-14
 
     steps:

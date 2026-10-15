@@ -198,3 +198,7 @@ bin/
 
 # Local environment variables (Apple credentials for release automation)
 .envrc
+
+# Hash-verified MathJax distribution prepared by Tools/prepare_offline_mathjax.py.
+MacDown/Resources/MathJax/Offline/
+MacDown/Resources/MathJax/.Offline-*/

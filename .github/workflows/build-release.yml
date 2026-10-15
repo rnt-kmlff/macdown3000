@@ -5,19 +5,28 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   verify-release-build:
     name: Verify Release Build (Dry Run)
     runs-on: macos-14
+    timeout-minutes: 30
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           submodules: recursive
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
 
       - name: Setup MacDown build environment
         uses: ./.github/actions/setup-macdown
+
+      - name: Verify dependency lockfile
+        run: git diff --exit-code -- Podfile.lock
 
       - name: Build MacDown (unsigned)
         timeout-minutes: 30
@@ -28,7 +37,7 @@ jobs:
       - name: Verify universal binary
         run: |
           echo "🔍 Verifying architectures..."
-          LIPO_OUTPUT=$(lipo -info build/"MacDown 3000.app"/Contents/MacOS/MacDown*)
+          LIPO_OUTPUT=$(lipo -info build/"MacDown Local.app"/Contents/MacOS/MacDown*)
           echo "$LIPO_OUTPUT"
 
           # Verify it's a universal binary (check for both architectures)
@@ -46,19 +55,39 @@ jobs:
         run: echo "sha=$(git rev-parse --short=8 HEAD)" >> $GITHUB_OUTPUT
 
       - name: Archive app bundle
-        if: github.event_name == 'workflow_dispatch'
         run: |
           cd build
-          zip -r "MacDown-3000-build-${{ steps.commit.outputs.sha }}.zip" "MacDown 3000.app" || { echo "::error::Failed to create archive"; exit 1; }
+          ditto -c -k --keepParent "MacDown Local.app" "MacDown-Local-${{ steps.commit.outputs.sha }}.zip" || { echo "::error::Failed to create archive"; exit 1; }
           echo "✅ Archive created:"
-          ls -lh "MacDown-3000-build-${{ steps.commit.outputs.sha }}.zip"
+          ls -lh "MacDown-Local-${{ steps.commit.outputs.sha }}.zip"
+
+      - name: Record exact candidate provenance
+        run: |
+          python3 - <<'PYCODE'
+          import hashlib, json, os, pathlib, subprocess
+          root = pathlib.Path('.')
+          package = next(pathlib.Path('build').glob('MacDown-Local-*.zip'))
+          receipt = {
+              'source_commit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(),
+              'run_id': os.environ['GITHUB_RUN_ID'],
+              'package': package.name,
+              'package_sha256': hashlib.sha256(package.read_bytes()).hexdigest(),
+              'podfile_lock_sha256': hashlib.sha256(pathlib.Path('Podfile.lock').read_bytes()).hexdigest(),
+              'libyaml': json.loads(pathlib.Path('Dependency/LibYAML/LibYAML.podspec.json').read_text()),
+              'mathjax_archive_sha256': json.loads(pathlib.Path('MacDown/Resources/MathJax/Offline/manifest.json').read_text())['archive_sha256'],
+              'signing': 'unsigned build; requires local candidate signing before use'
+          }
+          pathlib.Path('build/candidate.json').write_text(json.dumps(receipt, indent=2) + '\n')
+          print(json.dumps(receipt, indent=2))
+          PYCODE
 
       - name: Upload app archive artifact
-        if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
-          name: MacDown-3000-build-${{ steps.commit.outputs.sha }}
-          path: build/MacDown-3000-build-*.zip
+          name: MacDown-Local-${{ steps.commit.outputs.sha }}
+          path: |
+            build/MacDown-Local-*.zip
+            build/candidate.json
           retention-days: 7
 
       - name: Upload build logs
