@@ -22,9 +22,16 @@ jobs:
       uses: actions/checkout@v4
       with:
         submodules: recursive
+        ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
     - name: Setup MacDown build environment
       uses: ./.github/actions/setup-macdown
+
+    - name: Test bounded parser and asset extraction
+      run: |
+        python3 Tools/test_yaml_safety.py
+        python3 Tools/test_offline_mathjax.py
+        git diff --exit-code -- Podfile.lock
 
     # The step timeout bounds the cost of a hung test host: a job-level timeout cancels the
     # remaining steps, so the diagnostic steps below would never run, whereas a step-level

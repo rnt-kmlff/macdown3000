@@ -28,6 +28,10 @@
 @property (strong) MPTerminalPreferencesViewController *controller;
 @end
 
+@interface MPTerminalPreferencesViewController (OfflineCommandPath)
+- (NSString *)userCommandPath;
+@end
+
 @implementation MPTerminalPreferencesTests
 
 #pragma mark - Setup and Teardown
@@ -350,6 +354,17 @@
     // This will test the full workflow once implementation is complete
     // For now, just a placeholder
     XCTAssertTrue(YES, @"Integration test placeholder");
+}
+
+
+- (void)testForkCommandDoesNotReplaceOfficialCommand
+{
+    MPTerminalPreferencesViewController *controller =
+        [[MPTerminalPreferencesViewController alloc] init];
+    XCTAssertEqualObjects([controller userCommandPath].lastPathComponent,
+        @"macdown-local");
+    XCTAssertNotEqualObjects([controller userCommandPath].lastPathComponent,
+        @"macdown");
 }
 
 @end

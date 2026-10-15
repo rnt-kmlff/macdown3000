@@ -8,14 +8,13 @@
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>MacDown 3000 custom control</string>
+			<string>io.github.rnt-kmlff.macdownlocal</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>x-macdown</string>
+				<string>x-macdown-local</string>
 			</array>
 		</dict>
 	</array>
-
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
@@ -101,55 +100,24 @@
 	<key>LSMinimumSystemVersion</key>
 	<string>${MACOSX_DEPLOYMENT_TARGET}</string>
 	<key>NSAppTransportSecurity</key>
-	<dict>
-		<key>NSAllowsArbitraryLoads</key>
-		<true/>
-		<key>NSExceptionDomains</key>
-		<dict>
-			<key>cdnjs.cloudflare.com</key>
-			<dict>
-				<key>NSExceptionRequiresForwardSecrecy</key>
-				<false/>
-				<key>NSIncludesSubdomains</key>
-				<true/>
-			</dict>
-			<key>macdown.app</key>
-			<dict>
-				<key>NSIncludesSubdomains</key>
-				<true/>
-				<key>NSThirdPartyExceptionAllowsInsecureHTTPLoads</key>
-				<true/>
-			</dict>
-		</dict>
-	</dict>
+	<dict/>
 	<key>NSAppleScriptEnabled</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright © 2014–2020 Tzu-ping Chung.
 Copyright © 2025 Schuyler Erle.</string>
 	<key>NSDesktopFolderUsageDescription</key>
-	<string>MacDown 3000 needs access to your Desktop to track recently opened files.</string>
+	<string>MacDown Local needs access to your Desktop to track recently opened files.</string>
 	<key>NSDocumentsFolderUsageDescription</key>
-	<string>MacDown 3000 needs access to your Documents folder to track recently opened files.</string>
+	<string>MacDown Local needs access to your Documents folder to track recently opened files.</string>
 	<key>NSDownloadsFolderUsageDescription</key>
-	<string>MacDown 3000 needs access to your Downloads folder to track recently opened files.</string>
+	<string>MacDown Local needs access to your Downloads folder to track recently opened files.</string>
 	<key>NSMainNibFile</key>
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 	<key>OSAScriptingDefinition</key>
 	<string>MacDown.sdef</string>
-	<key>SUFeedURL</key>
-	<string>https://macdown.app/sparkle/macdown3000/stable/appcast.xml</string>
-	<!-- Public half of the EdDSA keypair Sparkle verifies updates against.
-	     Every shipped build carries this value, so changing it strands existing
-	     installs: they reject any update signed with a different key, and the
-	     replacement can only be delivered by manual download.
-	     The matching PRIVATE key must NEVER be committed to this repository.
-	     See plans/release-checklist.md for where it is stored and how the
-	     appcast is signed with it. -->
-	<key>SUPublicEDKey</key>
-	<string>dYc+fhKTMkIAQNFSmNbSMQTq2KMXgN9OqHiURc7oK1A=</string>
 	<key>UTExportedTypeDeclarations</key>
 	<array>
 		<dict>
@@ -180,5 +148,11 @@ Copyright © 2025 Schuyler Erle.</string>
 			</dict>
 		</dict>
 	</array>
+	<key>SUEnableAutomaticChecks</key>
+	<false/>
+	<key>SUAllowsAutomaticUpdates</key>
+	<false/>
+	<key>CFBundleDisplayName</key>
+	<string>MacDown Local</string>
 </dict>
 </plist>

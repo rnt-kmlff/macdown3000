@@ -78,7 +78,7 @@ NS_INLINE NSString *MPStylePathForName(NSString *name)
     NSArray *paths = NSSearchPathForDirectoriesInDomains(
         NSApplicationSupportDirectory, NSUserDomainMask, YES);
     if (paths.count > 0) {
-        NSString *appSupportPath = [paths[0] stringByAppendingPathComponent:@"MacDown 3000/Styles"];
+        NSString *appSupportPath = [paths[0] stringByAppendingPathComponent:@"MacDown Local/Styles"];
         NSString *stylePath = [appSupportPath stringByAppendingPathComponent:name];
         if ([manager fileExistsAtPath:stylePath]) {
             return stylePath;
@@ -126,7 +126,7 @@ NS_INLINE NSURL *MPHighlightingThemeURLForName(NSString *name)
     if (paths.count > 0) {
         NSString *userThemePath = [paths[0]
             stringByAppendingPathComponent:
-                [@"MacDown 3000" stringByAppendingPathComponent:
+                [@"MacDown Local" stringByAppendingPathComponent:
                     [kMPPrismThemeDirectory stringByAppendingPathComponent:
                         fileName]]];
         if ([manager fileExistsAtPath:userThemePath]) {

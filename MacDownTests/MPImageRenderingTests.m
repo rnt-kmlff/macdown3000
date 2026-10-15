@@ -7,16 +7,7 @@
 //  load their bits are the symptom of something in the render pipeline
 //  dropping or blocking the image source.
 //
-//  Nothing in MacDown's current code blocks image subresources, and these
-//  tests are tripwires that keep it that way: they pin the end-to-end image
-//  contract of the preview HTML so a future change (e.g. tightening the
-//  Content-Security-Policy the way preview-hardening work did, or rewriting
-//  the resource-load path) fails loudly in CI instead of silently breaking
-//  image rendering for every source at once.
-//
-//  These are pipeline-level tests; they cannot catch a failure that lives in
-//  the deprecated legacy WebView itself (the likely real-world trigger of
-//  #341). See the PR's manual testing plan for verifying the live WebView.
+//  The offline fork preserves local/data images and blocks web resources.
 //
 
 #import <XCTest/XCTest.h>
@@ -24,6 +15,8 @@
 #import "MPRendererTestHelpers.h"
 #import "hoedown/document.h"
 #import "hoedown_html_patch.h"
+#import <WebKit/WebKit.h>
+#import "MPDocument.h"
 
 
 @interface MPImageRenderingTests : XCTestCase
@@ -123,28 +116,188 @@
 }
 
 
-#pragma mark - CSP must keep every image scheme allowed (#341 tripwire)
+#pragma mark - Preview network isolation
 
-- (void)testPreviewCSPAllowsAllImageSchemes
+- (void)testPreviewCSPAllowsOnlyLocalAndEmbeddedImages
 {
     NSString *html = [self previewHTMLForMarkdown:@"# Heading"];
 
     XCTAssertTrue([html containsString:@"Content-Security-Policy"],
                   @"Preview HTML should include a CSP meta tag");
-    // Issue #341: if any of these schemes is dropped from img-src, images
-    // from that source silently stop rendering even though the <img>
-    // container still lays out. Keep all four allowed.
-    XCTAssertTrue([html containsString:@"img-src data: file: http: https:"],
-                  @"CSP img-src must allow data:, file:, http:, and https: images");
+    XCTAssertTrue([html containsString:@"img-src data: file:;"],
+                  @"Local/data images must remain available");
+    XCTAssertFalse([html containsString:@"img-src data: file: http:"],
+                   @"Web images must not load automatically");
+    XCTAssertTrue([html containsString:@"connect-src &#39;none&#39;"],
+                  @"XHR/fetch and other connections must be blocked");
 }
 
-- (void)testPreviewCSPAllowsAllMediaSchemes
+- (void)testPreviewCSPAllowsOnlyLocalAndEmbeddedMedia
 {
     NSString *html = [self previewHTMLForMarkdown:@"# Heading"];
 
-    // The same loss-of-rendering risk applies to <video>/<audio>/<source>.
-    XCTAssertTrue([html containsString:@"media-src data: file: http: https:"],
-                  @"CSP media-src must allow data:, file:, http:, and https: media");
+    XCTAssertTrue([html containsString:@"media-src data: file:;"],
+                  @"Media sources must be local or embedded");
+}
+
+@end
+
+// Observe real legacy-WebView requests, including a positive control proving
+// the interceptor is active. No test request leaves this process.
+static NSUInteger MPOfflineObservedRequests;
+@interface MPOfflineTestProtocol : NSURLProtocol
+@end
+@implementation MPOfflineTestProtocol
++ (BOOL)canInitWithRequest:(NSURLRequest *)request
+{
+    return [request.URL.host isEqualToString:@"offline.invalid"];
+}
++ (NSURLRequest *)canonicalRequestForRequest:(NSURLRequest *)request
+{
+    return request;
+}
+- (void)startLoading
+{
+    MPOfflineObservedRequests++;
+    NSData *png = [[NSData alloc] initWithBase64EncodedString:
+        @"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGP4DwQACfsD/fteaysAAAAASUVORK5CYII="
+        options:0];
+    NSURLResponse *response = [[NSURLResponse alloc] initWithURL:self.request.URL
+        MIMEType:@"image/png" expectedContentLength:png.length
+        textEncodingName:nil];
+    [self.client URLProtocol:self didReceiveResponse:response
+        cacheStoragePolicy:NSURLCacheStorageNotAllowed];
+    [self.client URLProtocol:self didLoadData:png];
+    [self.client URLProtocolDidFinishLoading:self];
+}
+- (void)stopLoading {}
+@end
+
+@interface MPOfflineFrameObserver : NSObject <WebFrameLoadDelegate>
+@property (strong) XCTestExpectation *loaded;
+@property BOOL completed;
+@end
+@implementation MPOfflineFrameObserver
+- (void)webView:(WebView *)view didFinishLoadForFrame:(WebFrame *)frame
+{
+    if (frame == view.mainFrame && !self.completed)
+    {
+        self.completed = YES;
+        [self.loaded fulfill];
+    }
+}
+@end
+
+@interface MPOfflineWebViewTests : XCTestCase
+@end
+@implementation MPOfflineWebViewTests
+
+- (void)testRealPreviewBlocksWebRequestsAndLoadsEmbeddedImage
+{
+    NSString *imagePath = [NSTemporaryDirectory() stringByAppendingPathComponent:
+        [[[NSUUID UUID] UUIDString] stringByAppendingPathExtension:@"png"]];
+    NSData *localPNG = [[NSData alloc] initWithBase64EncodedString:
+        @"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGP4DwQACfsD/fteaysAAAAASUVORK5CYII=" options:0];
+    XCTAssertTrue([localPNG writeToFile:imagePath atomically:YES]);
+    [NSURLProtocol registerClass:[MPOfflineTestProtocol class]];
+    @try
+    {
+        MPOfflineObservedRequests = 0;
+        WebView *control = [[WebView alloc] initWithFrame:NSMakeRect(0, 0, 400, 300)];
+        MPOfflineFrameObserver *controlObserver = [[MPOfflineFrameObserver alloc] init];
+        controlObserver.loaded = [self expectationWithDescription:@"network control"];
+        control.frameLoadDelegate = controlObserver;
+        [control.mainFrame loadHTMLString:
+            @"<img src='https://offline.invalid/control.png'>" baseURL:nil];
+        [self waitForExpectations:@[controlObserver.loaded] timeout:10];
+        XCTAssertGreaterThan(MPOfflineObservedRequests, (NSUInteger)0,
+            @"Positive control must prove WebView request observation works");
+        [control close];
+
+        MPMockRendererDataSource *source = [[MPMockRendererDataSource alloc] init];
+        source.markdown = @"<img src='https://offline.invalid/pixel.png'>"
+            "<link rel='stylesheet' href='https://offline.invalid/style.css'>"
+            "<script src='https://offline.invalid/code.js'></script>"
+            "<style>p {background:url(https://offline.invalid/css.png)}</style>"
+            "<video src='https://offline.invalid/movie.mp4'></video>"
+            "<img id='local' src='data:image/png;base64,"
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGP4DwQACfsD/fteaysAAAAASUVORK5CYII='>";
+        source.markdown = [source.markdown stringByAppendingFormat:
+            @"<img id='sidecar' src='%@'>",
+            [NSURL fileURLWithPath:imagePath].absoluteString];
+        MPMockRendererDelegate *delegate = [[MPMockRendererDelegate alloc] init];
+        MPRenderer *renderer = [[MPRenderer alloc] init];
+        renderer.dataSource = source;
+        renderer.delegate = delegate;
+        [renderer parseMarkdown:source.markdown];
+        [renderer render];
+        MPDocument *document = [[MPDocument alloc] init];
+        MPOfflineObservedRequests = 0;
+        WebView *preview = [[WebView alloc] initWithFrame:NSMakeRect(0, 0, 400, 300)];
+        MPOfflineFrameObserver *observer = [[MPOfflineFrameObserver alloc] init];
+        observer.loaded = [self expectationWithDescription:@"offline preview"];
+        preview.frameLoadDelegate = observer;
+        preview.resourceLoadDelegate = document;
+        [preview.mainFrame loadHTMLString:delegate.lastHTML baseURL:nil];
+        [self waitForExpectations:@[observer.loaded] timeout:10];
+        XCTAssertEqual(MPOfflineObservedRequests, (NSUInteger)0);
+        XCTAssertEqualObjects([preview stringByEvaluatingJavaScriptFromString:
+            @"document.getElementById('local').naturalWidth.toString()"], @"1");
+        XCTAssertEqualObjects([preview stringByEvaluatingJavaScriptFromString:
+            @"document.getElementById('sidecar').naturalWidth.toString()"], @"1");
+        [preview close];
+    }
+    @finally
+    {
+        [NSURLProtocol unregisterClass:[MPOfflineTestProtocol class]];
+        [[NSFileManager defaultManager] removeItemAtPath:imagePath error:NULL];
+    }
+}
+
+- (void)testMathAssetsExistAndUseOnlyALocalLoader
+{
+    MPMockRendererDataSource *source = [[MPMockRendererDataSource alloc] init];
+    source.markdown = @"$$x^2 + y^2$$";
+    MPMockRendererDelegate *delegate = [[MPMockRendererDelegate alloc] init];
+    delegate.mathJax = YES;
+    delegate.extensions = HOEDOWN_EXT_MATH;
+    MPRenderer *renderer = [[MPRenderer alloc] init];
+    renderer.dataSource = source;
+    renderer.delegate = delegate;
+    [renderer parseMarkdown:source.markdown];
+    [renderer render];
+    XCTAssertTrue([delegate.lastHTML containsString:@"MathJax/Offline/MathJax.js"]);
+    XCTAssertFalse([delegate.lastHTML containsString:@"cdnjs.cloudflare.com"]);
+    NSBundle *bundle = [NSBundle mainBundle];
+    for (NSString *asset in @[@"MathJax.js", @"config/TeX-AMS-MML_HTMLorMML.js",
+        @"jax/input/TeX/jax.js", @"jax/output/HTML-CSS/jax.js",
+        @"fonts/HTML-CSS/TeX/woff/MathJax_Main-Regular.woff"])
+    {
+        NSString *path = [bundle.resourcePath stringByAppendingPathComponent:
+            [@"MathJax/Offline" stringByAppendingPathComponent:asset]];
+        XCTAssertTrue([[NSFileManager defaultManager] fileExistsAtPath:path],
+            @"Missing offline math asset: %@", asset);
+    }
+    MPDocument *document = [[MPDocument alloc] init];
+    WebView *preview = [[WebView alloc] initWithFrame:NSMakeRect(0, 0, 400, 300)];
+    preview.resourceLoadDelegate = document;
+    [preview.mainFrame loadHTMLString:delegate.lastHTML baseURL:nil];
+    NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:15];
+    NSString *completed = @"false";
+    while ([deadline timeIntervalSinceNow] > 0)
+    {
+        completed = [preview stringByEvaluatingJavaScriptFromString:
+            @"!!(window.MathJax && MathJax.Hub && !MathJax.Hub.queue.pending"
+             " && document.querySelector('.MathJax_Display'))"];
+        if ([completed isEqualToString:@"true"])
+            break;
+        [[NSRunLoop mainRunLoop] runUntilDate:
+            [NSDate dateWithTimeIntervalSinceNow:0.02]];
+    }
+    XCTAssertEqualObjects(completed, @"true",
+        @"A complete math expression must typeset without a CDN");
+    [preview close];
+
 }
 
 @end

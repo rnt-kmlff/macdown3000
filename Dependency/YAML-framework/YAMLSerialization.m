@@ -8,6 +8,7 @@
 //
 
 #import "YAMLSerialization.h"
+#import "MPYAMLSafety.h"
 #import <M13OrderedDictionary/M13OrderedDictionary.h>
 
 NSString *const YAMLErrorDomain = @"com.github.mirek.yaml";
@@ -80,7 +81,10 @@ __YAMLSerializationObjectWithYAMLDocument (yaml_document_t *document, YAMLReadOp
     for (node = document->nodes.start, i = 0; node < document->nodes.top; node++, i++) {
         switch (node->type) {
             case YAML_SCALAR_NODE:
-                objects[i] = [[stringClass alloc] initWithUTF8String: (const char *)node->data.scalar.value];
+                objects[i] = [[stringClass alloc]
+                    initWithBytes:node->data.scalar.value
+                    length:node->data.scalar.length
+                    encoding:NSUTF8StringEncoding];
                 if (!root) root = objects[i];
                 break;
 
@@ -108,9 +112,25 @@ __YAMLSerializationObjectWithYAMLDocument (yaml_document_t *document, YAMLReadOp
                 break;
 
             case YAML_MAPPING_NODE:
-                for (pair = node->data.mapping.pairs.start; pair < node->data.mapping.pairs.top; pair++)
-                    [objects[i] setObject: objects[pair->value - 1]
-                                   forKey: objects[pair->key - 1]];
+                for (pair = node->data.mapping.pairs.start;
+                     pair < node->data.mapping.pairs.top; pair++)
+                {
+                    id key = objects[pair->key - 1];
+                    if (![key isKindOfClass:[NSString class]])
+                    {
+                        YAML_SET_ERROR(kYAMLErrorInvalidYamlObject,
+                            @"Metadata map keys must be scalars",
+                            @"Use plain string keys");
+                        for (int j = 0;
+                             j < document->nodes.top - document->nodes.start;
+                             j++)
+                            [objects[j] release];
+                        free(objects);
+                        return nil;
+                    }
+                    [objects[i] setObject:objects[pair->value - 1]
+                                  forKey:key];
+                }
                 break;
 
             default:
@@ -136,58 +156,86 @@ __YAMLSerializationObjectWithYAMLDocument (yaml_document_t *document, YAMLReadOp
     return root;
 }
 
-+ (NSMutableArray *) objectsWithYAMLStream: (NSInputStream *) stream
-                                   options: (YAMLReadOptions) opt
-                                     error: (NSError **) error
+// Read a bounded stream before asking LibYAML to scan or compose anything.
++ (NSMutableArray *)objectsWithYAMLStream:(NSInputStream *)stream
+                                 options:(YAMLReadOptions)opt
+                                   error:(NSError **)error
 {
-    NSMutableArray *documents = [NSMutableArray array];
-    id documentObject = nil;
-
-    yaml_parser_t parser;
-    yaml_document_t document;
-    BOOL done = NO;
-
-    // Open input stream
+    if (error)
+        *error = nil;
+    NSMutableData *input = [NSMutableData data];
+    uint8_t buffer[4096];
     [stream open];
-
-    memset(&parser, 0, sizeof(yaml_parser_t));
-    if (!yaml_parser_initialize(&parser)) {
-        YAML_SET_ERROR(kYAMLErrorCodeParserInitializationFailed, @"Error in yaml_parser_initialize(&parser)", @"Internal error, please let us know about this error");
+    NSInteger count;
+    while ((count = [stream read:buffer maxLength:sizeof(buffer)]) > 0)
+    {
+        if (input.length + (NSUInteger)count > MPYAMLMaxBytes)
+        {
+            [stream close];
+            YAML_SET_ERROR(kYAMLErrorCodeParseError,
+                @"Metadata exceeds 64 KiB", @"Use smaller metadata");
+            return nil;
+        }
+        [input appendBytes:buffer length:(NSUInteger)count];
+    }
+    [stream close];
+    if (count < 0 || !MPYAMLInputIsSafe(input.bytes, input.length))
+    {
+        YAML_SET_ERROR(kYAMLErrorCodeParseError,
+            @"Invalid or unsupported metadata",
+            @"Use shallow metadata without aliases");
         return nil;
     }
 
-    yaml_parser_set_input(&parser, __YAMLSerializationParserInputReadHandler, (void *)stream);
-
-    while (!done) {
-
-        if (!yaml_parser_load(&parser, &document)) {
-            YAML_SET_ERROR(kYAMLErrorCodeParseError, @"Parse error", @"Make sure YAML file is well formed");
-            return nil;
-        }
-
-        done = !yaml_document_get_root_node(&document);
-
-        if (!done) {
-            documentObject = __YAMLSerializationObjectWithYAMLDocument(&document, opt, error);
-            if (error && *error) {
-                yaml_document_delete(&document);
-            } else {
-                [documents addObject: documentObject];
-                [documentObject release];
-            }
-        }
-
-        // TODO: Check if aliases to previous documents are allowed by the specs
-        yaml_document_delete(&document);
+    yaml_parser_t parser;
+    if (!yaml_parser_initialize(&parser))
+    {
+        YAML_SET_ERROR(kYAMLErrorCodeParserInitializationFailed,
+            @"Cannot initialize metadata parser", @"Try again");
+        return nil;
     }
-
+    yaml_parser_set_input_string(&parser, input.bytes ? input.bytes
+        : (const unsigned char *)"", input.length);
+    NSMutableArray *documents = [NSMutableArray array];
+    BOOL failed = NO;
+    BOOL done = NO;
+    while (!done)
+    {
+        yaml_document_t document;
+        if (!yaml_parser_load(&parser, &document))
+        {
+            failed = YES;
+            break;
+        }
+        done = !yaml_document_get_root_node(&document);
+        if (!done)
+        {
+            id object = __YAMLSerializationObjectWithYAMLDocument(
+                &document, opt, error);
+            if (object)
+            {
+                [documents addObject:object];
+                [object release];
+            }
+            else
+                failed = YES;
+        }
+        yaml_document_delete(&document);
+        if (failed)
+            break;
+    }
     yaml_parser_delete(&parser);
-
+    if (failed)
+    {
+        YAML_SET_ERROR(kYAMLErrorCodeParseError,
+            @"Cannot parse metadata", @"Check the metadata format");
+        return nil;
+    }
     return documents;
 }
 
 + (id) objectWithYAMLStream: (NSInputStream *) stream options: (YAMLReadOptions) opt error: (NSError **) error {
-    return [[self objectsWithYAMLStream: stream options: opt error: error] objectAtIndex: 0];
+    return [[self objectsWithYAMLStream:stream options:opt error:error] firstObject];
 }
 
 + (NSMutableArray *) objectsWithYAMLData: (NSData *) data
@@ -204,7 +252,7 @@ __YAMLSerializationObjectWithYAMLDocument (yaml_document_t *document, YAMLReadOp
 }
 
 + (id) objectWithYAMLData: (NSData *) data options: (YAMLReadOptions) opt error: (NSError **) error {
-    return [[self objectsWithYAMLData: data options: opt error: error] objectAtIndex: 0];
+    return [[self objectsWithYAMLData:data options:opt error:error] firstObject];
 }
 
 + (NSMutableArray *) objectsWithYAMLString: (NSString *) string
@@ -217,7 +265,7 @@ __YAMLSerializationObjectWithYAMLDocument (yaml_document_t *document, YAMLReadOp
 }
 
 + (id) objectWithYAMLString: (NSString *) string options: (YAMLReadOptions) opt error: (NSError **) error {
-    return [[self objectsWithYAMLString: string options: opt error: error] objectAtIndex: 0];
+    return [[self objectsWithYAMLString:string options:opt error:error] firstObject];
 }
 
 #pragma mark Writing YAML

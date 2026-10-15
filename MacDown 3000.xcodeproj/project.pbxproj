@@ -512,7 +512,7 @@
 		1F9A14EB194EEE9900D1C6A9 /* MPMainController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = MPMainController.m; path = Code/Application/MPMainController.m; sourceTree = "<group>"; };
 		1F9A14EE194EEEDD00D1C6A9 /* Styles */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Styles; path = Resources/Styles; sourceTree = "<group>"; };
 		1F9A14F3194EF6A600D1C6A9 /* Themes */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Themes; path = Resources/Themes; sourceTree = "<group>"; };
-		1FA6DE211941CC9E000409FB /* MacDown 3000.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "MacDown 3000.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		1FA6DE211941CC9E000409FB /* MacDown Local.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "MacDown Local.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		1FA6DE241941CC9E000409FB /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
 		1FA6DE271941CC9E000409FB /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
 		1FA6DE281941CC9E000409FB /* CoreData.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreData.framework; path = System/Library/Frameworks/CoreData.framework; sourceTree = SDKROOT; };
@@ -1048,7 +1048,7 @@
 		1FA6DE221941CC9E000409FB /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				1FA6DE211941CC9E000409FB /* MacDown 3000.app */,
+				1FA6DE211941CC9E000409FB /* MacDown Local.app */,
 				1FA6DE451941CC9E000409FB /* MacDownTests.xctest */,
 				UITEST000003XCTEST /* MacDownUITests.xctest */,
 				905EF1A7196164CA00FC3CE9 /* macdown */,
@@ -1366,7 +1366,6 @@
 				905EF1B6196164E300FC3CE9 /* Copy Command Line Utility */,
 				1E02F0A95AAEBCEF65493F5F /* [CP] Copy Pods Resources */,
 				8DD02CA85834426992769538 /* Embed App Extensions */,
-				73EFC3524EF2D5CB67F18A48 /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -1377,7 +1376,7 @@
 			);
 			name = MacDown;
 			productName = MarkPad;
-			productReference = 1FA6DE211941CC9E000409FB /* MacDown 3000.app */;
+			productReference = 1FA6DE211941CC9E000409FB /* MacDown Local.app */;
 			productType = "com.apple.product-type.application";
 		};
 		1FA6DE441941CC9E000409FB /* MacDownTests */ = {
@@ -1730,24 +1729,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
-			showEnvVarsInLog = 0;
-		};
-		73EFC3524EF2D5CB67F18A48 /* [CP] Embed Pods Frameworks */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-MacDown/Pods-MacDown-frameworks.sh",
-				"${PODS_ROOT}/Sparkle/Sparkle.framework",
-			);
-			name = "[CP] Embed Pods Frameworks";
-			outputPaths = (
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/Sparkle.framework",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-MacDown/Pods-MacDown-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
 		B4334ECDC0751C835C1600D7 /* [CP] Check Pods Manifest.lock */ = {
@@ -2479,14 +2460,14 @@
 				CODE_SIGN_IDENTITY = "";
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 0;
-				EXECUTABLE_NAME = "MacDown 3000";
+				EXECUTABLE_NAME = "MacDown Local";
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "MacDown/Code/MacDown-Prefix.pch";
 				INFOPLIST_FILE = "MacDown/MacDown-Info.plist";
 				MACOSX_DEPLOYMENT_TARGET = 11.0;
 				MARKETING_VERSION = "0.0.0-dev";
-				PRODUCT_BUNDLE_IDENTIFIER = "app.macdown.macdown3000-debug";
-				PRODUCT_NAME = "MacDown 3000";
+				PRODUCT_BUNDLE_IDENTIFIER = "io.github.rnt-kmlff.macdownlocal-debug";
+				PRODUCT_NAME = "MacDown Local";
 				SDKROOT = macosx;
 				WRAPPER_EXTENSION = app;
 			};
@@ -2501,14 +2482,14 @@
 				CODE_SIGN_IDENTITY = "";
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 0;
-				EXECUTABLE_NAME = "MacDown 3000";
+				EXECUTABLE_NAME = "MacDown Local";
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "MacDown/Code/MacDown-Prefix.pch";
 				INFOPLIST_FILE = "MacDown/MacDown-Info.plist";
 				MACOSX_DEPLOYMENT_TARGET = 11.0;
 				MARKETING_VERSION = "0.0.0-dev";
-				PRODUCT_BUNDLE_IDENTIFIER = app.macdown.macdown3000;
-				PRODUCT_NAME = "MacDown 3000";
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.rnt-kmlff.macdownlocal;
+				PRODUCT_NAME = "MacDown Local";
 				SDKROOT = macosx;
 				WRAPPER_EXTENSION = app;
 			};
@@ -2518,7 +2499,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 8CDC5EA0050D2F722FB1AADD /* Pods-MacDownTests.debug.xcconfig */;
 			buildSettings = {
-				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/MacDown 3000.app/Contents/MacOS/MacDown 3000";
+				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/MacDown Local.app/Contents/MacOS/MacDown Local";
 				CLANG_ENABLE_MODULES = NO;
 				COMBINE_HIDPI_IMAGES = YES;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -2543,7 +2524,7 @@
 					"$(USER_LIBRARY_DIR)/Developer/Xcode/DerivedData/MacDown-ggdtxvuybojeqbhjydkhilziizrv/Build/Products/Debug",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 11.0;
-				PRODUCT_BUNDLE_IDENTIFIER = app.macdown.macdown3000.tests;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.rnt-kmlff.macdownlocal.tests;
 				PRODUCT_NAME = MacDownTests;
 				TEST_HOST = "$(BUNDLE_LOADER)";
 				WRAPPER_EXTENSION = xctest;
@@ -2554,7 +2535,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 0D0EC0DE9FEA22F962083921 /* Pods-MacDownTests.release.xcconfig */;
 			buildSettings = {
-				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/MacDown 3000.app/Contents/MacOS/MacDown 3000";
+				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/MacDown Local.app/Contents/MacOS/MacDown Local";
 				CLANG_ENABLE_MODULES = NO;
 				COMBINE_HIDPI_IMAGES = YES;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -2578,7 +2559,7 @@
 					"$(USER_LIBRARY_DIR)/Developer/Xcode/DerivedData/MacDown-ggdtxvuybojeqbhjydkhilziizrv/Build/Products/Debug",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 11.0;
-				PRODUCT_BUNDLE_IDENTIFIER = app.macdown.macdown3000.tests;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.rnt-kmlff.macdownlocal.tests;
 				PRODUCT_NAME = MacDownTests;
 				TEST_HOST = "$(BUNDLE_LOADER)";
 				WRAPPER_EXTENSION = xctest;
@@ -2601,7 +2582,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 11.0;
 				MARKETING_VERSION = "0.0.0-dev";
-				PRODUCT_BUNDLE_IDENTIFIER = "app.macdown.macdown3000-debug.QuickLook";
+				PRODUCT_BUNDLE_IDENTIFIER = "io.github.rnt-kmlff.macdownlocal-debug.QuickLook";
 				PRODUCT_NAME = MacDownQuickLook;
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
@@ -2629,7 +2610,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 11.0;
 				MARKETING_VERSION = "0.0.0-dev";
-				PRODUCT_BUNDLE_IDENTIFIER = app.macdown.macdown3000.MacDownCore;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.rnt-kmlff.macdownlocal.MacDownCore;
 				PRODUCT_NAME = MacDownCore;
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
@@ -2685,7 +2666,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 11.0;
 				MARKETING_VERSION = "0.0.0-dev";
-				PRODUCT_BUNDLE_IDENTIFIER = "app.macdown.macdown3000-debug.MacDownCore";
+				PRODUCT_BUNDLE_IDENTIFIER = "io.github.rnt-kmlff.macdownlocal-debug.MacDownCore";
 				PRODUCT_NAME = MacDownCore;
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
@@ -2710,7 +2691,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 11.0;
 				MARKETING_VERSION = "0.0.0-dev";
-				PRODUCT_BUNDLE_IDENTIFIER = app.macdown.macdown3000.QuickLook;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.rnt-kmlff.macdownlocal.QuickLook;
 				PRODUCT_NAME = MacDownQuickLook;
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
@@ -2730,7 +2711,7 @@
 					"@loader_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 11.0;
-				PRODUCT_BUNDLE_IDENTIFIER = app.macdown.macdown3000.uitests;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.rnt-kmlff.macdownlocal.uitests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 				TEST_TARGET_NAME = MacDown;
@@ -2750,7 +2731,7 @@
 					"@loader_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 11.0;
-				PRODUCT_BUNDLE_IDENTIFIER = app.macdown.macdown3000.uitests;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.rnt-kmlff.macdownlocal.uitests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 				TEST_TARGET_NAME = MacDown;

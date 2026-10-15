@@ -16,6 +16,7 @@ permissions:
 jobs:
   release:
     name: Build, Sign, Notarize, and Release
+    if: github.repository == 'schuyler/macdown3000'
     runs-on: macos-14
 
     steps:

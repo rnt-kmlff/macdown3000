@@ -12,6 +12,7 @@ jobs:
       matrix:
         os: [macos-14, macos-26]
       fail-fast: false
+    if: github.repository == 'schuyler/macdown3000'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     permissions:
@@ -135,6 +136,7 @@ jobs:
   # Keep in sync with the inline UI test in release.yml
   ui-test:
     name: Run UI Tests
+    if: github.repository == 'schuyler/macdown3000'
     runs-on: macos-26
     timeout-minutes: 30
     permissions:

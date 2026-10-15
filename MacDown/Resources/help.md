@@ -1,18 +1,20 @@
-# MacDown 3000
+# MacDown Local
 
-![MacDown 3000 logo](Images/logo-160.png)
+![MacDown Local logo](Images/logo-160.png)
 
-Hello there! I'm **MacDown 3000**, the open source Markdown editor for macOS.
+Hello there! I'm **MacDown Local**, the open source Markdown editor for macOS.
 
-Let me introduce myself.
+MacDown Local is a fork of MacDown 3000 with offline previews and manual
+updates. Web images stay in your source but do not load in the preview.
+To open a web link, right-click it and choose **Open Link in Browser**.
 
-## Making MacDown 3000 Your Default Markdown Editor
+## Making MacDown Local Your Default Markdown Editor
 
-MacDown 3000 is now available to open your Markdown files! To make me your default editor for `.md` files:
+MacDown Local is now available to open your Markdown files! To make me your default editor for `.md` files:
 
 1. In Finder, right-click any `.md` file
 2. Choose **Get Info** (or press ⌘I)
-3. Under **"Open with:"**, select MacDown 3000
+3. Under **"Open with:"**, select MacDown Local
 4. Click **"Change All..."**
 
 You can also find me in the **"Open With"** menu whenever you right-click a `.md` file.
@@ -21,7 +23,7 @@ You can also find me in the **"Open With"** menu whenever you right-click a `.md
 
 **Markdown** is a plain text formatting syntax created by John Gruber, aiming to provide an easy-to-read and feasible markup. The original Markdown syntax specification can be found [on Daring Fireball](https://daringfireball.net/projects/markdown/syntax).
 
-**MacDown 3000** is created as a simple-to-use editor for Markdown documents. I render your Markdown contents real-time into HTML, and display them in a preview panel.
+**MacDown Local** is created as a simple-to-use editor for Markdown documents. I render your Markdown contents real-time into HTML, and display them in a preview panel.
 
 ![MacDown Screenshot](Images/screenshot.png)
 
@@ -89,8 +91,8 @@ Just put angle brackets around an email and it becomes clickable: <hello@macdown
 Same thing with urls: <https://macdown.app>
 ` <https://macdown.app>`
 
-Perhaps you want to link some text like this: [MacDown 3000 Website](https://macdown.app "Title")
-`[MacDown 3000 Website](https://macdown.app "Title")` (The title is optional)
+Perhaps you want to link some text like this: [Upstream MacDown 3000 Website](https://macdown.app "Title")
+`[Upstream MacDown 3000 Website](https://macdown.app "Title")` (The title is optional)
 
 #### Reference style
 
@@ -346,7 +348,10 @@ Normally I require you to put two spaces and a newline (a.k.a. return) at the en
 This is where I keep preferences related to application behavior.
 ![General preferences pane](Images/preferences-general.png)
 
-The General Preferences Pane allows you to tell me how you want me to behave. For example, do you want me to make sure there is a document open when I launch? You can also tell me if I should constantly update the preview window as you type, or wait for you to hit `command-R` instead. Maybe you prefer your editor window on the right? Or to see the word-count as you type. This is also the place to tell me if you are interested in pre-releases of me, or just want to stick to better-tested official releases.  
+The General Preferences Pane lets you choose whether a document opens at launch,
+whether the preview updates as you type or after `command-R`, which side holds
+the editor, and whether to show the word count. Updates in this fork are
+installed manually; the pre-release preference has no effect.
 
 ## <a name="editor-pane"></a>The Editor Preference Pane
 
@@ -361,21 +366,18 @@ You can also edit, or even add new themes if you want to! Just click the ***Reve
 
 I offer auto-completion and other functions to ease your editing experience. If you don't like it, however, you can turn them off.
 
-## Hidden preference
+## Offline preview
 
-You can see the HTML behind a preview by enabling the macOS built-in WebKit developer tools for MacDown 3000 in a terminal window:
+Local and embedded images work without web access. Math rendering also runs
+locally when enabled in the **Rendering** preference pane. Same-page links
+remain clickable; other links use the preview context menu.
 
-```bash
-defaults write app.macdown.macdown3000 WebKitDeveloperExtras -bool true
-```
-
-Then select “Inspect Element” in the right-click context menu inside the preview pane.
-
-This is the exact same inspector you find in Safari if you turn on the developer tools.
+Updates are installed manually from reviewed builds. This fork has no
+automatic updater.
 
 ## Hack On
 
-That’s about it. Thanks for listening. I’ll be quiet from now on (unless there’s an update about the app—I’ll remind you for that!).
+That’s about it. Happy writing with MacDown Local.
 
 Happy writing!
 
@@ -385,4 +387,4 @@ Happy writing!
 
 [^quote]: **Quote** replaces literal `"` characters with html `<q>` tags. **Quote** and **Smartypants** are syntactically incompatible. If both are enabled, **Quote** takes precedence. Note that **Quote** is different from *blockquote*, which is part of standard Markdown.
 
-[^math]: Internet connection required.
+[^math]: Math assets are bundled; no Internet connection is required.

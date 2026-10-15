@@ -257,4 +257,59 @@
                           @"Syntactic front matter should still be skipped");
 }
 
+
+#pragma mark - Bounded metadata parser
+
+- (void)testUsesPatchedLibYAML
+{
+    extern const char *yaml_get_version_string(void);
+    XCTAssertEqualObjects(@(yaml_get_version_string()), @"0.2.5");
+}
+
+- (void)testNormalMetadataAndNestedValues
+{
+    NSString *source = @"---\ntitle: Example\nitems: [one, two]\n"
+                        "nested: {key: value}\n---\n# Body";
+    NSUInteger offset = 0;
+    NSDictionary *metadata = [source frontMatter:&offset];
+    XCTAssertEqualObjects(metadata[@"title"], @"Example");
+    XCTAssertEqualObjects(metadata[@"items"], (@[@"one", @"two"]));
+    XCTAssertEqualObjects(metadata[@"nested"][@"key"], @"value");
+    XCTAssertEqualObjects([source substringFromIndex:offset], @"# Body");
+}
+
+- (void)testRejectsAliasesBeforeComposition
+{
+    XCTAssertNil([@"---\na: &a [*a]\n---\nBody" frontMatter:NULL]);
+    XCTAssertNil([@"---\na: &a value\nb: *a\n---" frontMatter:NULL]);
+}
+
+- (void)testRejectsDeepOversizedAndComplexKeyMetadata
+{
+    NSMutableString *deep = [NSMutableString stringWithString:@"---\n"];
+    for (int i = 0; i < 1000; i++) [deep appendString:@"["];
+    [deep appendString:@"value"];
+    for (int i = 0; i < 1000; i++) [deep appendString:@"]"];
+    [deep appendString:@"\n---\nBody"];
+    XCTAssertNil([deep frontMatter:NULL]);
+    NSString *large = [@"x" stringByPaddingToLength:65537
+                                        withString:@"x" startingAtIndex:0];
+    NSString *source = [NSString stringWithFormat:@"---\na: %@\n---", large];
+    XCTAssertNil([source frontMatter:NULL]);
+    XCTAssertNil([@"---\n? [one, two]\n: value\n---" frontMatter:NULL]);
+}
+
+- (void)testLongPercentEscapedTagsAndMalformedInputRecovery
+{
+    NSString *escapes = [@"" stringByPaddingToLength:12288
+        withString:@"%F0%9F%98%80" startingAtIndex:0];
+    NSString *source = [NSString stringWithFormat:
+        @"---\na: !<tag:example.com,%@> value\n---", escapes];
+    XCTAssertEqualObjects([source frontMatter:NULL][@"a"], @"value");
+    for (int i = 0; i < 100; i++)
+        XCTAssertNil([@"---\na: [broken\n---" frontMatter:NULL]);
+    XCTAssertEqualObjects([@"---\ntitle: Recovered\n---"
+        frontMatter:NULL][@"title"], @"Recovered");
+}
+
 @end

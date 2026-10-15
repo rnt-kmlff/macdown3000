@@ -8,6 +8,44 @@
 
 #import <XCTest/XCTest.h>
 #import "MPURLSecurityPolicy.h"
+#import "MPDocument.h"
+#import <WebKit/WebKit.h>
+
+@interface MPDocument (OfflinePolicyTests)
+- (NSArray *)webView:(WebView *)view
+    contextMenuItemsForElement:(NSDictionary *)element
+    defaultMenuItems:(NSArray *)items;
+- (void)openPreviewLinkFromMenu:(NSMenuItem *)item;
+- (NSURLRequest *)webView:(WebView *)view resource:(id)resource
+    willSendRequest:(NSURLRequest *)request
+    redirectResponse:(NSURLResponse *)response
+    fromDataSource:(WebDataSource *)source;
+- (void)webView:(WebView *)view
+    decidePolicyForNavigationAction:(NSDictionary *)information
+    request:(NSURLRequest *)request frame:(WebFrame *)frame
+    decisionListener:(id<WebPolicyDecisionListener>)listener;
+- (void)webView:(WebView *)view
+    decidePolicyForNewWindowAction:(NSDictionary *)information
+    request:(NSURLRequest *)request newFrameName:(NSString *)name
+    decisionListener:(id<WebPolicyDecisionListener>)listener;
+- (void)openOrCreateFileForUrl:(NSURL *)url;
+@end
+
+@interface MPOfflineRecordingDocument : MPDocument
+@property (strong) NSURL *openedURL;
+@end
+@implementation MPOfflineRecordingDocument
+- (void)openOrCreateFileForUrl:(NSURL *)url { self.openedURL = url; }
+@end
+
+@interface MPOfflineDecisionListener : NSObject <WebPolicyDecisionListener>
+@property BOOL ignored;
+@end
+@implementation MPOfflineDecisionListener
+- (void)ignore { self.ignored = YES; }
+- (void)use { self.ignored = NO; }
+- (void)download { self.ignored = NO; }
+@end
 
 @interface MPURLSecurityPolicyTests : XCTestCase
 @property (strong) NSString *tempDir;
@@ -345,6 +383,200 @@
 
     XCTAssertFalse([MPURLSecurityPolicy url:targetURL isWithinScopeOfBaseURL:baseURL],
                    @"Symlink escaping directory scope must be rejected after resolution");
+}
+
+
+#pragma mark - Automatic resource requests and user activation
+
+- (void)testAutomaticNetworkSchemesAreDenied
+{
+    MPDocument *document = [[MPDocument alloc] init];
+    NSArray *urls = @[@"https://example.invalid/pixel", @"http://127.0.0.1/",
+        @"ftp://example.invalid/file", @"wss://example.invalid/",
+        @"file://example.invalid/share/image.png", @"javascript:alert(1)"];
+    for (NSString *value in urls)
+    {
+        NSURL *url = [NSURL URLWithString:value];
+        XCTAssertFalse([MPURLSecurityPolicy isAllowedPreviewResourceURL:url]);
+        NSURLRequest *request = [NSURLRequest requestWithURL:url];
+        XCTAssertNil([document webView:nil resource:nil willSendRequest:request
+            redirectResponse:nil fromDataSource:nil], @"%@", value);
+        NSURLResponse *redirect = [[NSURLResponse alloc]
+            initWithURL:[NSURL fileURLWithPath:@"/tmp/local.png"]
+            MIMEType:@"image/png" expectedContentLength:0 textEncodingName:nil];
+        XCTAssertNil([document webView:nil resource:nil willSendRequest:request
+            redirectResponse:redirect fromDataSource:nil], @"%@", value);
+    }
+    XCTAssertFalse([MPURLSecurityPolicy isAllowedPreviewResourceURL:nil]);
+}
+
+- (void)testAutomaticLocalAndEmbeddedResourcesRemainAvailable
+{
+    MPDocument *document = [[MPDocument alloc] init];
+    for (NSString *value in @[@"file:///tmp/image.png",
+        @"data:image/png;base64,AAAA", @"about:blank"])
+    {
+        NSURLRequest *request = [NSURLRequest requestWithURL:
+            [NSURL URLWithString:value]];
+        XCTAssertEqualObjects([document webView:nil resource:nil
+            willSendRequest:request redirectResponse:nil fromDataSource:nil],
+            request);
+    }
+}
+
+- (void)testDOMClicksCannotOpenLinksButNativeMenuCan
+{
+    MPOfflineRecordingDocument *document =
+        [[MPOfflineRecordingDocument alloc] init];
+    NSURLRequest *request = [NSURLRequest requestWithURL:
+        [NSURL URLWithString:@"https://example.invalid/"]];
+    MPOfflineDecisionListener *listener = [[MPOfflineDecisionListener alloc] init];
+    [document webView:nil decidePolicyForNavigationAction:@{
+        WebActionNavigationTypeKey: @(WebNavigationTypeLinkClicked)}
+        request:request frame:nil decisionListener:listener];
+    XCTAssertTrue(listener.ignored);
+    XCTAssertNil(document.openedURL);
+
+    NSMenuItem *unsafe = [[NSMenuItem alloc] initWithTitle:@"Old open"
+        action:NULL keyEquivalent:@""];
+    unsafe.tag = WebMenuItemTagOpenLinkInNewWindow;
+    NSMenuItem *download = [[NSMenuItem alloc] initWithTitle:@"Old download"
+        action:NULL keyEquivalent:@""];
+    download.tag = WebMenuItemTagDownloadLinkToDisk;
+    NSArray *menu = [document webView:nil contextMenuItemsForElement:@{
+        WebElementLinkURLKey: request.URL}
+        defaultMenuItems:@[unsafe, download]];
+    XCTAssertEqual(menu.count, (NSUInteger)1);
+    NSMenuItem *open = menu.firstObject;
+    XCTAssertEqualObjects(open.title, @"Open Link in Browser");
+    XCTAssertEqual(open.action, @selector(openPreviewLinkFromMenu:));
+    XCTAssertEqual(open.target, document);
+    [document openPreviewLinkFromMenu:open];
+    XCTAssertEqualObjects(document.openedURL, request.URL);
+
+    NSArray *custom = [document webView:nil contextMenuItemsForElement:@{
+        WebElementLinkURLKey: [NSURL URLWithString:@"some-app:payload"]}
+        defaultMenuItems:@[unsafe, download]];
+    XCTAssertEqual(custom.count, (NSUInteger)0);
+}
+
+- (void)testUnknownPreviewMenuActionsAreRejected
+{
+    MPDocument *document = [[MPDocument alloc] init];
+    for (NSNumber *tag in @[@0, @(WebMenuItemTagOther), @10000])
+    {
+        NSMenuItem *unknown = [[NSMenuItem alloc] initWithTitle:@"Open Link"
+            action:NSSelectorFromString(@"forwardContextMenuAction:")
+            keyEquivalent:@""];
+        unknown.tag = tag.integerValue;
+        NSArray *menu = [document webView:nil contextMenuItemsForElement:@{
+            WebElementLinkURLKey: [NSURL URLWithString:@"some-app:payload"]}
+            defaultMenuItems:@[unknown]];
+        XCTAssertEqual(menu.count, (NSUInteger)0,
+            @"Private/unknown WebKit actions must not bypass the opener");
+    }
+}
+
+- (void)testPreviewMenuPreservesCopyAndUsesNativeReload
+{
+    MPDocument *document = [[MPDocument alloc] init];
+    NSMutableArray *defaults = [NSMutableArray array];
+    for (NSNumber *tag in @[@(WebMenuItemTagCopy),
+        @(WebMenuItemTagCopyLinkToClipboard),
+        @(WebMenuItemTagCopyImageToClipboard), @(WebMenuItemTagReload)])
+    {
+        NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Default"
+            action:NSSelectorFromString(@"forwardContextMenuAction:")
+            keyEquivalent:@""];
+        item.tag = tag.integerValue;
+        [defaults addObject:item];
+    }
+    NSArray *menu = [document webView:nil contextMenuItemsForElement:@{}
+        defaultMenuItems:defaults];
+    XCTAssertEqual(menu.count, (NSUInteger)4);
+    for (NSUInteger i = 0; i < 3; i++)
+        XCTAssertEqual(menu[i], defaults[i]);
+    NSMenuItem *reload = menu.lastObject;
+    XCTAssertEqual(reload.target, document);
+    XCTAssertEqual(reload.action, NSSelectorFromString(@"reloadPreview:"));
+    XCTAssertNotEqual(reload, defaults.lastObject);
+}
+
+- (void)testSiblingHTMLCannotReplaceProtectedPreview
+{
+    MPDocument *document = [[MPDocument alloc] init];
+    NSURL *base = [NSURL fileURLWithPath:
+        [self.tempDir stringByAppendingPathComponent:@".macdown-preview-base"]];
+    [document setValue:base forKey:@"currentBaseUrl"];
+    MPOfflineDecisionListener *listener = [[MPOfflineDecisionListener alloc] init];
+    NSURL *sibling = [NSURL fileURLWithPath:
+        [self.tempDir stringByAppendingPathComponent:@"payload.html"]];
+    [document webView:nil decidePolicyForNavigationAction:@{
+        WebActionNavigationTypeKey: @(WebNavigationTypeOther)}
+        request:[NSURLRequest requestWithURL:sibling] frame:nil
+        decisionListener:listener];
+    XCTAssertTrue(listener.ignored);
+    NSURL *anchor = [NSURL URLWithString:
+        [base.absoluteString stringByAppendingString:@"#heading"]];
+    [document webView:nil decidePolicyForNavigationAction:@{
+        WebActionNavigationTypeKey: @(WebNavigationTypeLinkClicked)}
+        request:[NSURLRequest requestWithURL:anchor] frame:nil
+        decisionListener:listener];
+    XCTAssertFalse(listener.ignored, @"Same-page anchors must still work");
+}
+
+- (void)testScriptedHTTPNavigationIsIgnored
+{
+    MPDocument *document = [[MPDocument alloc] init];
+    MPOfflineDecisionListener *listener = [[MPOfflineDecisionListener alloc] init];
+    [document webView:nil decidePolicyForNavigationAction:@{
+        WebActionNavigationTypeKey: @(WebNavigationTypeOther)}
+        request:[NSURLRequest requestWithURL:
+            [NSURL URLWithString:@"https://example.invalid/"]]
+        frame:nil decisionListener:listener];
+    XCTAssertTrue(listener.ignored);
+}
+
+
+- (void)testPreviewCannotOpenNewWebWindows
+{
+    MPDocument *document = [[MPDocument alloc] init];
+    MPOfflineDecisionListener *listener = [[MPOfflineDecisionListener alloc] init];
+    [document webView:nil decidePolicyForNewWindowAction:@{}
+        request:[NSURLRequest requestWithURL:
+            [NSURL URLWithString:@"https://example.invalid/"]]
+        newFrameName:@"_blank" decisionListener:listener];
+    XCTAssertTrue(listener.ignored);
+}
+
+
+- (void)testGeneratedLoadPermissionIsSingleUse
+{
+    MPDocument *document = [[MPDocument alloc] init];
+    NSURL *base = [NSURL fileURLWithPath:
+        [self.tempDir stringByAppendingPathComponent:@".macdown-preview-base"]];
+    [document setValue:base forKey:@"currentBaseUrl"];
+    [document setValue:@YES forKey:@"awaitingGeneratedPreview"];
+    MPOfflineDecisionListener *listener = [[MPOfflineDecisionListener alloc] init];
+    NSDictionary *other = @{WebActionNavigationTypeKey: @(WebNavigationTypeOther)};
+    [document webView:nil decidePolicyForNavigationAction:other
+        request:[NSURLRequest requestWithURL:base] frame:nil
+        decisionListener:listener];
+    XCTAssertFalse(listener.ignored, @"App-owned generated load is permitted");
+    for (NSURL *url in @[base, [NSURL URLWithString:@"about:blank"],
+        [NSURL URLWithString:[base.absoluteString stringByAppendingString:@"?x=1"]],
+        [NSURL URLWithString:[base.absoluteString stringByAppendingString:@"?x=1#h"]]])
+    {
+        [document webView:nil decidePolicyForNavigationAction:other
+            request:[NSURLRequest requestWithURL:url] frame:nil
+            decisionListener:listener];
+        XCTAssertTrue(listener.ignored, @"A later bare/query navigation is denied");
+    }
+    [document webView:nil decidePolicyForNavigationAction:@{
+        WebActionNavigationTypeKey: @(WebNavigationTypeReload)}
+        request:[NSURLRequest requestWithURL:base] frame:nil
+        decisionListener:listener];
+    XCTAssertTrue(listener.ignored, @"Reload cannot fetch a planted base file");
 }
 
 @end

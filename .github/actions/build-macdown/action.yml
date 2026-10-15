@@ -77,12 +77,12 @@ runs:
         echo "📦 Extracting application bundle..."
 
         # Extract .app from archive
-        cp -R build/MacDown.xcarchive/Products/Applications/"MacDown 3000.app" build/"MacDown 3000.app"
+        cp -R build/MacDown.xcarchive/Products/Applications/"MacDown Local.app" build/"MacDown Local.app"
 
         # Display build info
         echo "Build contents:"
         ls -lh build/
 
         # Get version
-        APP_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" build/"MacDown 3000.app"/Contents/Info.plist)
+        APP_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" build/"MacDown Local.app"/Contents/Info.plist)
         echo "📌 App version: $APP_VERSION"

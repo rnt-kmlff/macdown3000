@@ -363,6 +363,7 @@ typedef NS_ENUM(NSInteger, MPReferenceKind) {
 @property (strong) NSURL *pdfExportURL;
 @property BOOL isPreviewReady;
 @property (strong) NSURL *currentBaseUrl;
+@property (assign) BOOL awaitingGeneratedPreview;
 @property (copy) NSString *currentPreviewResourceHTML;
 @property CGFloat lastPreviewScrollTop;
 @property (nonatomic, readonly) BOOL needsHtml;
@@ -1832,15 +1833,9 @@ static BOOL MPScanFenceMarker(NSString *line, unichar *outChar, NSUInteger *outL
 - (NSURLRequest *)webView:(WebView *)sender resource:(id)identifier willSendRequest:(NSURLRequest *)request redirectResponse:(NSURLResponse *)redirectResponse fromDataSource:(WebDataSource *)dataSource
 {
 
-    if ([[request.URL lastPathComponent] isEqualToString:@"MathJax.js"])
-    {
-        NSURLComponents *origComps = [NSURLComponents componentsWithURL:[request URL] resolvingAgainstBaseURL:YES];
-        NSURLComponents *updatedComps = [NSURLComponents componentsWithURL:[[NSBundle mainBundle] URLForResource:@"MathJax" withExtension:@"js" subdirectory:@"MathJax"] resolvingAgainstBaseURL:NO];
-        [updatedComps setQueryItems:[origComps queryItems]];
-
-        request = [NSURLRequest requestWithURL:[updatedComps URL]];
-    }
-
+    // Covers every subresource and every redirect, independent of CSP.
+    if (![MPURLSecurityPolicy isAllowedPreviewResourceURL:request.URL])
+        return nil;
     return request;
 }
 
@@ -1848,6 +1843,8 @@ static BOOL MPScanFenceMarker(NSString *line, unichar *outChar, NSUInteger *outL
 
 - (void)webView:(WebView *)sender didCommitLoadForFrame:(WebFrame *)frame
 {
+    if (frame == sender.mainFrame)
+        self.awaitingGeneratedPreview = NO;
     NSWindow *window = sender.window;
 
     @synchronized(window) {
@@ -1906,6 +1903,7 @@ static BOOL MPScanFenceMarker(NSString *line, unichar *outChar, NSUInteger *outL
 - (void)webView:(WebView *)sender didFailLoadWithError:(NSError *)error
        forFrame:(WebFrame *)frame
 {
+    self.awaitingGeneratedPreview = NO;
     [self webView:sender didFinishLoadForFrame:frame];
     
     self.alreadyRenderingInWeb = NO;
@@ -1934,57 +1932,45 @@ static BOOL MPScanFenceMarker(NSString *line, unichar *outChar, NSUInteger *outL
         return;
     }
 
-    switch ([information[WebActionNavigationTypeKey] integerValue])
+    // Legacy WebKit exposes no reliable user-activation token. All browser
+    // and cross-document opening therefore requires a native menu action.
+    // Only the generated page itself and its anchors stay in the WebView.
+    BOOL generated = self.awaitingGeneratedPreview
+        && ([url.absoluteString isEqualToString:@"about:blank"]
+            || [url isEqual:self.currentBaseUrl]);
+    if (generated)
     {
-        case WebNavigationTypeLinkClicked:
-            // If the target is exactly as the current one, ignore.
-            if ([self.currentBaseUrl isEqual:url])
-            {
-                [listener ignore];
-                return;
-            }
-            // If this is a different page, intercept and handle ourselves.
-            else if (![self isCurrentBaseUrl:url])
-            {
-                [listener ignore];
-                [self openOrCreateFileForUrl:url];
-                return;
-            }
-            // Otherwise this is somewhere else on the same page. Jump there.
-            break;
-        default:
-            // CVE-2019-12173: Block file:// navigations from non-user-initiated
-            // actions (e.g., JavaScript auto-click) unless they target the
-            // current document scope and are not executable.
-            //
-            // Note: WebKit may classify JS element.click() as
-            // WebNavigationTypeLinkClicked, routing it through
-            // openOrCreateFileForUrl: instead. That path has its own
-            // executable guard, so the CVE is closed either way.
-            //
-            // User-clicked file:// links intentionally skip the scope check —
-            // opening local documents (PDFs, images) from Markdown links is a
-            // legitimate use case. Only executables are blocked for user clicks.
-            if (url.isFileURL)
-            {
-                NSURL *baseURL = self.currentBaseUrl ?: self.fileURL;
-                if (!baseURL || !baseURL.isFileURL)
-                {
-                    // Untitled documents have no base URL; silently ignore.
-                    [listener ignore];
-                    return;
-                }
-                if (![MPURLSecurityPolicy url:url isWithinScopeOfBaseURL:baseURL]
-                    || [MPURLSecurityPolicy isExecutableOrAppBundleAtURL:url])
-                {
-                    NSLog(@"MacDown: Blocked file:// navigation for security: %@", url);
-                    [listener ignore];
-                    return;
-                }
-            }
-            break;
+        self.awaitingGeneratedPreview = NO;
+        [listener use];
+        return;
+    }
+    NSURLComponents *target = [NSURLComponents componentsWithURL:url
+                                       resolvingAgainstBaseURL:YES];
+    NSURLComponents *base = self.currentBaseUrl
+        ? [NSURLComponents componentsWithURL:self.currentBaseUrl
+                     resolvingAgainstBaseURL:YES] : nil;
+    BOOL fragment = target.fragment.length > 0;
+    target.fragment = nil;
+    base.fragment = nil;
+    BOOL anchor = fragment && self.currentBaseUrl
+        && [target.URL isEqual:base.URL]
+        && [information[WebActionNavigationTypeKey] integerValue]
+            == WebNavigationTypeLinkClicked;
+    if (!anchor)
+    {
+        [listener ignore];
+        return;
     }
     [listener use];
+}
+
+
+- (void)webView:(WebView *)view
+    decidePolicyForNewWindowAction:(NSDictionary *)information
+    request:(NSURLRequest *)request newFrameName:(NSString *)name
+    decisionListener:(id<WebPolicyDecisionListener>)listener
+{
+    [listener ignore];
 }
 
 
@@ -2019,24 +2005,59 @@ static BOOL MPScanFenceMarker(NSString *line, unichar *outChar, NSUInteger *outL
         contextMenuItemsForElement:(NSDictionary *)element
         defaultMenuItems:(NSArray *)defaultMenuItems
 {
-    NSMutableArray *items = [NSMutableArray arrayWithArray:defaultMenuItems];
-
-    for (NSInteger i = 0; i < items.count; i++)
+    NSMutableArray *items = [NSMutableArray array];
+    for (NSMenuItem *item in defaultMenuItems)
     {
-        NSMenuItem *item = items[i];
-        if (item.tag == WebMenuItemTagReload)
+        // WebKit also supplies private tags. Keep only clipboard commands
+        // and our native reload; unknown open/download/share actions fail
+        // closed instead of bypassing the guarded link opener.
+        switch (item.tag)
         {
-            NSMenuItem *reloadItem = [[NSMenuItem alloc]
-                initWithTitle:item.title
-                action:@selector(reloadPreview:)
-                keyEquivalent:@""];
-            reloadItem.target = self;
-            [items replaceObjectAtIndex:i withObject:reloadItem];
-            break;
+            case WebMenuItemTagCopy:
+            case WebMenuItemTagCopyLinkToClipboard:
+            case WebMenuItemTagCopyImageToClipboard:
+                [items addObject:item];
+                break;
+            case WebMenuItemTagReload:
+            {
+                NSMenuItem *reload = [[NSMenuItem alloc]
+                    initWithTitle:item.title action:@selector(reloadPreview:)
+                    keyEquivalent:@""];
+                reload.target = self;
+                [items addObject:reload];
+                break;
+            }
+            default:
+                break;
         }
+    }
+    NSURL *link = element[WebElementLinkURLKey];
+    NSString *scheme = link.scheme.lowercaseString;
+    BOOL web = [scheme isEqualToString:@"http"]
+        || [scheme isEqualToString:@"https"];
+    BOOL local = link.isFileURL
+        && [MPURLSecurityPolicy isAllowedPreviewResourceURL:link]
+        && ![MPURLSecurityPolicy isExecutableOrAppBundleAtURL:link];
+    if ((web || local) && ![self isCurrentBaseUrl:link])
+    {
+        NSString *title = web ? @"Open Link in Browser" : @"Open Local Link";
+        NSMenuItem *open = [[NSMenuItem alloc] initWithTitle:title
+            action:@selector(openPreviewLinkFromMenu:) keyEquivalent:@""];
+        open.target = self;
+        open.representedObject = link;
+        [items insertObject:open atIndex:0];
     }
 
     return items;
+}
+
+- (void)openPreviewLinkFromMenu:(NSMenuItem *)item
+{
+    // This selector belongs to a native NSMenuItem, not the document's DOM.
+    if (item.target != self || item.action != _cmd
+        || ![item.representedObject isKindOfClass:[NSURL class]])
+        return;
+    [self openOrCreateFileForUrl:item.representedObject];
 }
 
 - (void)reloadPreview:(id)sender
@@ -2293,6 +2314,8 @@ static BOOL MPScanFenceMarker(NSString *line, unichar *outChar, NSUInteger *outL
             NSMinY(self.preview.enclosingScrollView.contentView.bounds);
 
     // Fall back to full reload
+    self.currentBaseUrl = baseUrl;
+    self.awaitingGeneratedPreview = YES;
     [self.preview.mainFrame loadHTMLString:html baseURL:baseUrl];
     // Re-apply preview zoom immediately. The WebKit page-size multiplier
     // is reset by a fresh load; calling it now (in addition to the
@@ -2300,7 +2323,6 @@ static BOOL MPScanFenceMarker(NSString *line, unichar *outChar, NSUInteger *outL
     // the preview could briefly render at 100% before our preference
     // takes effect.
     [self applyPreviewZoom];
-    self.currentBaseUrl = baseUrl;
     self.currentPreviewResourceHTML = newPreviewResourceHTML;
 }
 
@@ -4623,6 +4645,13 @@ to link outside that scope.", \
 
 - (void)openOrCreateFileForUrl:(NSURL *)url
 {
+    NSString *scheme = url.scheme.lowercaseString;
+    if (!(url.isFileURL
+          && [MPURLSecurityPolicy isAllowedPreviewResourceURL:url])
+        && ![scheme isEqualToString:@"http"]
+        && ![scheme isEqualToString:@"https"])
+        return;
+
     // Simply open the file if it is not local, or exists already.
     BOOL file = url.isFileURL;
     BOOL reachable = !file || [url checkResourceIsReachableAndReturnError:NULL];
