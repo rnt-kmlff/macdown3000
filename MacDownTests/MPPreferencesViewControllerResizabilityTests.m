@@ -338,6 +338,96 @@ static NSArray<NSButton *> *MPCheckboxes(NSView *content)
         @"clip at the old 430pt width");
 }
 
+// These groups can overlap even when every view has unambiguous layout:
+// the CSS row is top-anchored and the checkbox chain is bottom-anchored.
+// Check actual frames rather than merely checking for constraints.
+- (void)assertHtmlCSSRowClearanceWithEnlargedOutlet:(NSString *)outlet
+{
+    MPHtmlPreferencesViewController *vc =
+        [[MPHtmlPreferencesViewController alloc] init];
+    NSView *content = MPContentView(vc);
+    NSMutableArray<NSButton *> *matches = [NSMutableArray array];
+    for (NSButton *checkbox in MPCheckboxes(content))
+    {
+        NSDictionary *binding = [checkbox infoForBinding:NSValueBinding];
+        NSString *path = binding[NSObservedKeyPathKey];
+        if ([path hasSuffix:@".htmlSyntaxHighlighting"])
+            [matches addObject:checkbox];
+    }
+    XCTAssertEqual(matches.count, 1U,
+        @"Expected exactly one syntax-highlighting checkbox");
+    if (matches.count != 1)
+        return;
+
+    NSButton *syntax = matches.firstObject;
+    NSView *popup = [vc valueForKey:@"stylesheetSelect"];
+    NSView *actions = [vc valueForKey:@"stylesheetFunctions"];
+    XCTAssertNotNil(popup);
+    XCTAssertNotNil(actions);
+    if (!popup || !actions)
+        return;
+
+    if (outlet)
+    {
+        NSLayoutConstraint *heightPin = nil;
+        for (NSLayoutConstraint *constraint in content.constraints)
+        {
+            if (constraint.firstItem == content
+                && !constraint.secondItem
+                && constraint.relation == NSLayoutRelationEqual
+                && constraint.firstAttribute == NSLayoutAttributeHeight)
+                heightPin = constraint;
+        }
+        XCTAssertNotNil(heightPin);
+        if (!heightPin)
+            return;
+
+        // Enlarge each top-row control separately. Either missing clearance
+        // relationship must be observable even if the other one remains.
+        NSView *enlarged = [vc valueForKey:outlet];
+        heightPin.active = NO;
+        [enlarged.heightAnchor
+            constraintGreaterThanOrEqualToConstant:48].active = YES;
+        [content layoutSubtreeIfNeeded];
+        heightPin.constant = MAX(heightPin.constant,
+                                 ceil(content.fittingSize.height));
+        heightPin.active = YES;
+        [vc.view layoutSubtreeIfNeeded];
+    }
+
+    NSRect syntaxRect = [syntax convertRect:syntax.bounds toView:content];
+    for (NSView *control in @[popup, actions])
+    {
+        NSRect rect = [control convertRect:control.bounds toView:content];
+        // AppKit alignment insets include control shadows, so the visible
+        // frame clearance is smaller than the 16pt anchor clearance.
+        XCTAssertGreaterThanOrEqual(NSMinY(rect) - NSMaxY(syntaxRect), 7.5,
+            @"CSS control %@ overlaps the syntax row (stress: %@)",
+            control, outlet ?: @"normal metrics");
+        XCTAssertTrue(NSContainsRect(NSInsetRect(content.bounds, -1, -1),
+                                     rect),
+            @"CSS control must remain inside the pane");
+    }
+    XCTAssertTrue(NSContainsRect(NSInsetRect(content.bounds, -1, -1),
+                                 syntaxRect),
+        @"Syntax checkbox must remain inside the pane");
+}
+
+- (void)testHtmlCSSControlsDoNotOverlapSyntaxCheckbox
+{
+    [self assertHtmlCSSRowClearanceWithEnlargedOutlet:nil];
+}
+
+- (void)testHtmlTallCSSPopupDoesNotOverlapSyntaxCheckbox
+{
+    [self assertHtmlCSSRowClearanceWithEnlargedOutlet:@"stylesheetSelect"];
+}
+
+- (void)testHtmlTallCSSActionsDoNotOverlapSyntaxCheckbox
+{
+    [self assertHtmlCSSRowClearanceWithEnlargedOutlet:@"stylesheetFunctions"];
+}
+
 // loadView must size each pane to fit its content for the active locale rather
 // than the static English design frame, so localized text is never clipped.
 - (void)testContentIsSizedToFitItsContent
