@@ -8,6 +8,8 @@ load. Opening a link in the browser requires the native context-menu action
 `Open Link in Browser`. Ordinary clicks cannot leave the protected preview;
 script-generated clicks and arbitrary URL schemes are denied. Local file links
 use `Open Local Link`, retaining executable-file guards. Same-page anchors work.
+Only copy commands and the application's reload action are retained from
+WebKit's default preview menu. Unknown/private actions are rejected.
 
 MathJax 2.7.9 is bundled from a pinned, hash-verified source archive, including
 its configuration, extensions, renderers and fonts. There is no CDN fallback.

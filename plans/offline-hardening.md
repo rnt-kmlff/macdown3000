@@ -48,7 +48,9 @@ metadata parser. This is a material security/dependency change.
   user activation cannot be established reliably, disable external opening.
   The SDK has no public original-event token: implement this fallback and
   expose explicit native context-menu actions for HTTP(S)/safe local links.
-  Remove stock WebKit open/download menu actions. Permit only the generated
+  Retain only copy commands and native reload from WebKit's default menu;
+  reject unknown/private tags as well as stock open/download/share actions.
+  Permit only the generated
   base URL and its fragments in preview navigation, never a sibling HTML page.
   Finder preview already
   disables JS/connections; remove its network entitlement as defense in depth.

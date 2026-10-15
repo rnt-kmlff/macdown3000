@@ -460,6 +460,48 @@
     XCTAssertEqual(custom.count, (NSUInteger)0);
 }
 
+- (void)testUnknownPreviewMenuActionsAreRejected
+{
+    MPDocument *document = [[MPDocument alloc] init];
+    for (NSNumber *tag in @[@0, @(WebMenuItemTagOther), @10000])
+    {
+        NSMenuItem *unknown = [[NSMenuItem alloc] initWithTitle:@"Open Link"
+            action:NSSelectorFromString(@"forwardContextMenuAction:")
+            keyEquivalent:@""];
+        unknown.tag = tag.integerValue;
+        NSArray *menu = [document webView:nil contextMenuItemsForElement:@{
+            WebElementLinkURLKey: [NSURL URLWithString:@"some-app:payload"]}
+            defaultMenuItems:@[unknown]];
+        XCTAssertEqual(menu.count, (NSUInteger)0,
+            @"Private/unknown WebKit actions must not bypass the opener");
+    }
+}
+
+- (void)testPreviewMenuPreservesCopyAndUsesNativeReload
+{
+    MPDocument *document = [[MPDocument alloc] init];
+    NSMutableArray *defaults = [NSMutableArray array];
+    for (NSNumber *tag in @[@(WebMenuItemTagCopy),
+        @(WebMenuItemTagCopyLinkToClipboard),
+        @(WebMenuItemTagCopyImageToClipboard), @(WebMenuItemTagReload)])
+    {
+        NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Default"
+            action:NSSelectorFromString(@"forwardContextMenuAction:")
+            keyEquivalent:@""];
+        item.tag = tag.integerValue;
+        [defaults addObject:item];
+    }
+    NSArray *menu = [document webView:nil contextMenuItemsForElement:@{}
+        defaultMenuItems:defaults];
+    XCTAssertEqual(menu.count, (NSUInteger)4);
+    for (NSUInteger i = 0; i < 3; i++)
+        XCTAssertEqual(menu[i], defaults[i]);
+    NSMenuItem *reload = menu.lastObject;
+    XCTAssertEqual(reload.target, document);
+    XCTAssertEqual(reload.action, NSSelectorFromString(@"reloadPreview:"));
+    XCTAssertNotEqual(reload, defaults.lastObject);
+}
+
 - (void)testSiblingHTMLCannotReplaceProtectedPreview
 {
     MPDocument *document = [[MPDocument alloc] init];

@@ -2008,17 +2008,27 @@ static BOOL MPScanFenceMarker(NSString *line, unichar *outChar, NSUInteger *outL
     NSMutableArray *items = [NSMutableArray array];
     for (NSMenuItem *item in defaultMenuItems)
     {
+        // WebKit also supplies private tags. Keep only clipboard commands
+        // and our native reload; unknown open/download/share actions fail
+        // closed instead of bypassing the guarded link opener.
         switch (item.tag)
         {
-            case WebMenuItemTagOpenLinkInNewWindow:
-            case WebMenuItemTagDownloadLinkToDisk:
-            case WebMenuItemTagOpenImageInNewWindow:
-            case WebMenuItemTagDownloadImageToDisk:
-            case WebMenuItemTagOpenFrameInNewWindow:
-            case WebMenuItemTagOpenWithDefaultApplication:
-                continue;
-            default:
+            case WebMenuItemTagCopy:
+            case WebMenuItemTagCopyLinkToClipboard:
+            case WebMenuItemTagCopyImageToClipboard:
                 [items addObject:item];
+                break;
+            case WebMenuItemTagReload:
+            {
+                NSMenuItem *reload = [[NSMenuItem alloc]
+                    initWithTitle:item.title action:@selector(reloadPreview:)
+                    keyEquivalent:@""];
+                reload.target = self;
+                [items addObject:reload];
+                break;
+            }
+            default:
+                break;
         }
     }
     NSURL *link = element[WebElementLinkURLKey];
@@ -2036,21 +2046,6 @@ static BOOL MPScanFenceMarker(NSString *line, unichar *outChar, NSUInteger *outL
         open.target = self;
         open.representedObject = link;
         [items insertObject:open atIndex:0];
-    }
-
-    for (NSInteger i = 0; i < items.count; i++)
-    {
-        NSMenuItem *item = items[i];
-        if (item.tag == WebMenuItemTagReload)
-        {
-            NSMenuItem *reloadItem = [[NSMenuItem alloc]
-                initWithTitle:item.title
-                action:@selector(reloadPreview:)
-                keyEquivalent:@""];
-            reloadItem.target = self;
-            [items replaceObjectAtIndex:i withObject:reloadItem];
-            break;
-        }
     }
 
     return items;
