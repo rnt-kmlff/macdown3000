@@ -19,8 +19,9 @@ and nonscalar mapping keys are unsupported and rejected; the Markdown body is
 still rendered and the source is preserved. Parser state is released on failure.
 
 The application, settings, support files, CLI and URL scheme are separate from
-the official application. Legacy preference migration and upstream update feeds
-are inactive. Install reviewed updates manually; do not install an upstream
+the official application. Legacy preference migration and the Sparkle updater
+dependency are removed, and no update feed is configured. Install reviewed
+updates manually; do not install an upstream
 release over this fork and assume these controls remain.
 
 This is targeted hardening, not a security certification. The editor still uses

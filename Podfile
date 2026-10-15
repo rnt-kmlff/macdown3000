@@ -16,7 +16,6 @@ target "MacDown" do
   pod 'LibYAML', :podspec => 'Dependency/LibYAML/LibYAML.podspec.json'
   pod 'M13OrderedDictionary', '~> 1.1'
   pod 'MASPreferences', '~> 1.4'
-  pod 'Sparkle', '~> 2.9'
 
   pod 'PAPreferences', '~> 0.5'
 end

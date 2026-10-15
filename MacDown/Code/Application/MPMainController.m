@@ -98,7 +98,6 @@ NS_INLINE void treat()
 
 @interface MPMainController ()
 @property (readonly) NSWindowController *preferencesWindowController;
-@property (nonatomic, strong, readwrite) SPUStandardUpdaterController *updaterController;
 @end
 
 

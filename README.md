@@ -6,7 +6,8 @@ and the [hardening design](plans/offline-hardening.md).
 
 The fork replaces the old metadata parser, bounds hostile metadata, blocks
 automatic preview network requests, bundles math assets, and isolates its
-identity/settings from upstream. Updates are manual reviewed builds.
+identity/settings from upstream. The updater dependency is removed; updates
+are manual reviewed builds.
 
 ---
 

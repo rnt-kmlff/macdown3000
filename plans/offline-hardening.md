@@ -60,7 +60,10 @@ metadata parser. This is a material security/dependency change.
   `io.github.rnt-kmlff.macdownlocal`; isolate application support/preferences,
   CLI identity and URL scheme. Remove the legacy preference migration, not just
   its bundle identifiers. Remove upstream feed/key and disable updater
-  creation/start/menu actions. Keep release automation from publishing or
+  creation/start/menu actions. Remove the unused Sparkle dependency, its
+  framework-embedding build phase and unused controller property. Assert that
+  neither its framework nor runtime classes exist and that the release binary
+  has no Sparkle linkage. Keep release automation from publishing or
   uploading to upstream; produce a candidate artifact only.
 - Extend real renderer/delegate and metadata tests, with local fixtures and a
   request-counting synthetic protocol/server. Tests must detect removal of CSP
@@ -124,9 +127,10 @@ claim that tests establish security certification.
 - Project/plist/workflow syntax and `git diff --check`: PASS.
 - Local native app/XCTest/archive: SKIPPED because full Xcode is absent. Hosted
   macOS 14/26 native tests and a universal Release archive are required next.
-- Sparkle remains a linked upstream dependency but no controller is created,
-  no feed/key is configured, update actions stay disabled, and no startup path
-  starts it. This is tested explicitly; it is not an enabled update channel.
+- Sparkle is absent from the dependency recipe and framework-embedding phase.
+  Native tests require its framework and runtime classes to be absent before
+  and after startup/update actions; release CI also rejects Sparkle linkage.
+  No feed/key is configured and the localized update action stays disabled.
 - Candidate packages remain unsigned until locally prepared for review. No
   Developer ID/notarization claim and no installed/default-app change.
 
@@ -138,3 +142,9 @@ conditions. A fresh whole-diff review is required before publication. Upstream's
 legacy smoke workflow is disabled in the fork because it tests retired migration
 behavior; native unit checks and the universal candidate build are the active
 fork checks.
+
+The updater-removal design received independent approval before implementation.
+The `c1e2fad` package is retained only as earlier verification evidence, with
+1339 native tests passing on each macOS 14/26 runner. It is not the installation
+candidate: the replacement must contain no Sparkle dependency and must pass a
+fresh full implementation review, exact-head CI and downloaded-artifact checks.

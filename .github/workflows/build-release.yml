@@ -54,6 +54,16 @@ jobs:
         id: commit
         run: echo "sha=$(git rev-parse --short=8 HEAD)" >> $GITHUB_OUTPUT
 
+      - name: Verify updater is absent
+        run: |
+          app="build/MacDown Local.app"
+          test ! -e "$app/Contents/Frameworks/Sparkle.framework"
+          otool -L "$app/Contents/MacOS/MacDown Local" > build/linkage.txt
+          if grep -qi sparkle build/linkage.txt; then
+            echo "::error::The offline fork must not link an updater"
+            exit 1
+          fi
+
       - name: Archive app bundle
         run: |
           cd build

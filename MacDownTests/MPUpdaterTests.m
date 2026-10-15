@@ -18,17 +18,27 @@
     XCTAssertFalse([info[@"SUAllowsAutomaticUpdates"] boolValue]);
 }
 
-- (void)testForkNeverCreatesAnUpdater
+- (void)assertUpdaterIsAbsent
+{
+    NSString *framework = [[NSBundle mainBundle].privateFrameworksPath
+        stringByAppendingPathComponent:@"Sparkle.framework"];
+    XCTAssertFalse([[NSFileManager defaultManager] fileExistsAtPath:framework]);
+    XCTAssertNil(NSClassFromString(@"SPUUpdater"));
+    XCTAssertNil(NSClassFromString(@"SPUStandardUpdaterController"));
+}
+
+- (void)testForkNeverBundlesOrLoadsAnUpdater
 {
     MPMainController *controller = [[MPMainController alloc] init];
-    XCTAssertNil(controller.updaterController);
+    [self assertUpdaterIsAbsent];
     MPMainController *realDelegate = (MPMainController *)NSApp.delegate;
     XCTAssertNotNil(realDelegate);
-    XCTAssertNil(realDelegate.updaterController);
+    XCTAssertFalse([realDelegate respondsToSelector:
+        NSSelectorFromString(@"updaterController")]);
     [controller applicationDidFinishLaunching:nil];
-    XCTAssertNil(controller.updaterController);
+    [self assertUpdaterIsAbsent];
     [controller checkForUpdates:nil];
-    XCTAssertNil(controller.updaterController);
+    [self assertUpdaterIsAbsent];
     NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Check for Updates"
         action:@selector(checkForUpdates:) keyEquivalent:@""];
     XCTAssertFalse([controller validateMenuItem:item]);
