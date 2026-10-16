@@ -1,8 +1,9 @@
 # Graphite Md app icon
 
 The app icon uses a dark glass tile and raised silver Md lettering inspired by
-early iPhone icons. The capital M is dominant, with a smaller lowercase d beside
-it. The arrow is removed. Its exterior transparency and rounded square footprint
+early iPhone icons. The broad capital M sits beside a lowercase d with a clear
+bowl and upright ascender, sharing its baseline. The arrow is removed.
+Its exterior transparency and rounded square footprint
 are retained across the existing macOS asset catalog slots.
 Application identity, file-type icons and security settings are unchanged.
 
