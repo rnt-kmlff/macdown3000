@@ -1,0 +1,91 @@
+{
+  "description": "Dark graphite early-iPhone-inspired icon with silver Md lettering",
+  "generation_tool": "built-in image_gen",
+  "generated_date": "2026-10-16",
+  "master": "master.png",
+  "master_sha256": "1e31d0f3ca018411eae17774fb8dc39903299c2b7e2886cb04082e0aeb524b45",
+  "master_pixels": [
+    1254,
+    1254
+  ],
+  "prompt": "prompt.txt",
+  "reference": {
+    "base_commit": "13d1e39a096e63430f533d5ee70ef58657dacf1a",
+    "path": "Design/AppIcon/master.png",
+    "sha256": "a1a6c3e62c2694e25c8ffbba022e2456445c48e275e297e65bfe1ff3861da548"
+  },
+  "resize_tool": "sips-316",
+  "resize_command": "sips -z PIXELS PIXELS Design/AppIcon/master.png --out MacDown/Images.xcassets/AppIcon.appiconset/FILENAME",
+  "slots": [
+    {
+      "filename": "icon_16x16.png",
+      "point_size": "16x16",
+      "scale": "1x",
+      "pixels": 16,
+      "sha256": "958e0db24986e96f2fe3674e47b63400255bed4314e6e259d057a77afef7d94f"
+    },
+    {
+      "filename": "icon_16x16@2x.png",
+      "point_size": "16x16",
+      "scale": "2x",
+      "pixels": 32,
+      "sha256": "7796d9d79dee6702782323c4091d42c3e45b9642af555e9e9aeeb41adfb3a20a"
+    },
+    {
+      "filename": "icon_32x32.png",
+      "point_size": "32x32",
+      "scale": "1x",
+      "pixels": 32,
+      "sha256": "7796d9d79dee6702782323c4091d42c3e45b9642af555e9e9aeeb41adfb3a20a"
+    },
+    {
+      "filename": "icon_32x32@2x.png",
+      "point_size": "32x32",
+      "scale": "2x",
+      "pixels": 64,
+      "sha256": "c05284302ac8d657158db4d9e85b0b76dc0c11c995590884bd7c923d78d6a469"
+    },
+    {
+      "filename": "icon_128x128.png",
+      "point_size": "128x128",
+      "scale": "1x",
+      "pixels": 128,
+      "sha256": "69121ec63ef6b49f82be288a3a31462583b08ce193210fd1852a8ec1ee032953"
+    },
+    {
+      "filename": "icon_128x128@2x.png",
+      "point_size": "128x128",
+      "scale": "2x",
+      "pixels": 256,
+      "sha256": "676aee209164c8cf84e07690ec96c0ce5ff5f97f41c873ffb57d5fef8ec01a3e"
+    },
+    {
+      "filename": "icon_256x256.png",
+      "point_size": "256x256",
+      "scale": "1x",
+      "pixels": 256,
+      "sha256": "676aee209164c8cf84e07690ec96c0ce5ff5f97f41c873ffb57d5fef8ec01a3e"
+    },
+    {
+      "filename": "icon_256x256@2x.png",
+      "point_size": "256x256",
+      "scale": "2x",
+      "pixels": 512,
+      "sha256": "b158c8d55a8fec7e0f8f7182176c64bb596d15543c32e472ac1eca893f2600a0"
+    },
+    {
+      "filename": "icon_512x512.png",
+      "point_size": "512x512",
+      "scale": "1x",
+      "pixels": 512,
+      "sha256": "b158c8d55a8fec7e0f8f7182176c64bb596d15543c32e472ac1eca893f2600a0"
+    },
+    {
+      "filename": "icon_512x512@2x.png",
+      "point_size": "512x512",
+      "scale": "2x",
+      "pixels": 1024,
+      "sha256": "5380a33fe7f4e1c0e7c95031eb087cd9633e48a34293833c342bb3ead777ebab"
+    }
+  ]
+}
